@@ -1,0 +1,18 @@
+failure_id: AGR-009
+component: router
+trigger: mvw_a_live_openrouter_failure
+observed: 'RuntimeError: all OpenRouter model attempts failed for openrouter-reviewer-a:
+  [''qwen/qwen3-4b:free: APIConnectionError'', ''meta-llama/llama-3.3-70b-instruct:free:
+  APIConnectionError'', ''arcee-ai/trinity-large-preview:free: APIConnectionError'',
+  ''liquid/lfm-2.5-1.2b-thinking:free: APIConnectionError'', ''liquid/lfm-2.5-1.2b-instruct:free:
+  APIConnectionError'', ''qwen/qwen3-4b:free: APIConnectionError'', ''meta-llama/llama-3.3-70b-instruct:free:
+  APIConnectionError'', ''arcee-ai/trinity-large-preview:free: APIConnectionError'',
+  ''liquid/lfm-2.5-1.2b-thinking:free: APIConnectionError'', ''liquid/lfm-2.5-1.2b-instruct:free:
+  APIConnectionError'']'
+expected: live OpenRouter path should produce two structured claims
+root_cause: OpenRouter live execution failed in mvw_a_run
+next_week_action: add live connectivity preflight and classify OpenRouter APIConnectionError
+  in mvw_a_run
+severity: medium
+test_category: fallback
+date: '2026-02-26'

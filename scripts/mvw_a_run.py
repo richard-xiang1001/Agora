@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import datetime as dt
 import json
 import os
 import pathlib
@@ -9,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, ValidationError
+import yaml
 
 
 class Claim(BaseModel):
@@ -332,6 +334,36 @@ def merge_claims(valid_claims: list[Claim]) -> str:
     return "\n".join([verdict, "", "Findings:", *findings])
 
 
+def _next_failure_id(failure_dir: pathlib.Path) -> str:
+    max_id = 0
+    for p in failure_dir.glob("failure_report_*.yaml"):
+        m = re.search(r"AGR-(\d{3})", p.read_text(encoding="utf-8"))
+        if m:
+            max_id = max(max_id, int(m.group(1)))
+    return f"AGR-{max_id + 1:03d}"
+
+
+def _write_live_failure_report(base_dir: pathlib.Path, observed: str) -> pathlib.Path:
+    failures = base_dir / "governance" / "failures"
+    failures.mkdir(parents=True, exist_ok=True)
+    failure_id = _next_failure_id(failures)
+    out = failures / f"failure_report_{failure_id.split('-')[-1]}.yaml"
+    payload = {
+        "failure_id": failure_id,
+        "component": "router",
+        "trigger": "mvw_a_live_openrouter_failure",
+        "observed": observed,
+        "expected": "live OpenRouter path should produce two structured claims",
+        "root_cause": "OpenRouter live execution failed in mvw_a_run",
+        "next_week_action": "add live connectivity preflight and classify OpenRouter APIConnectionError in mvw_a_run",
+        "severity": "medium",
+        "test_category": "fallback",
+        "date": dt.date.today().isoformat(),
+    }
+    out.write_text(yaml.safe_dump(payload, sort_keys=False, allow_unicode=False), encoding="utf-8")
+    return out
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run MVW-A read-only code review flow.")
     parser.add_argument("--run-id", required=True)
@@ -364,7 +396,13 @@ def main() -> int:
             build_mock_claim("claude-3-7-reviewer", code),
         ], "mock"
     else:
-        raw_claims, source_mode = maybe_live_claims(args.mode, code, free_only=free_only)
+        try:
+            raw_claims, source_mode = maybe_live_claims(args.mode, code, free_only=free_only)
+        except Exception as exc:  # noqa: BLE001
+            if args.mode == "live":
+                report = _write_live_failure_report(pathlib.Path("."), f"{exc.__class__.__name__}: {exc}")
+                print(f"[FAIL] live run failed; failure report written: {report}")
+            raise
 
     validated_claims: list[Claim] = []
     gate_results: list[dict[str, Any]] = []
