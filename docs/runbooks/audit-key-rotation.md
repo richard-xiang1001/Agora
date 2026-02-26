@@ -16,3 +16,5 @@
 - Reject unsigned requests.
 - Reject unknown `key_id`.
 - Ensure append failures are buffered to WAL before key retirement.
+- Ensure business APIs do not write `sessions/*/audit.jsonl` directly; all writes must go through `AuditDaemon.append_event`.
+- Verify `POST /internal/audit/append` and runtime helper `_append_audit_event(...)` remain the only append entrypoints.

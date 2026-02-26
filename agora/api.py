@@ -5,19 +5,27 @@ import os
 import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
-from agora.audit_daemon import AuditDaemon
+from agora.audit_daemon import AuditDaemon, sign_request
+from agora.execution_controller import ExecutionController
 from agora.feature_validation import validate_task_features
-from agora.models import FALLBACK_FEATURES, AuditAppendRequest
+from agora.irreversibility_gate import IrreversibilityGate
+from agora.models import (
+    FALLBACK_FEATURES,
+    ApprovalState,
+    AuditAppendRequest,
+    ToolActionRequest,
+)
 from agora.redteam import run_redteam_suite
 from agora.rule_engine import RuleEngine
 from agora.sandbox_gc import SandboxGC
 from agora.state_projector import StateProjector
+from agora.tool_worker import ToolWorker
 
 
 class SessionCreateRequest(BaseModel):
@@ -62,6 +70,20 @@ class ToolApproveRequest(BaseModel):
     action_id: str
     approved: bool
     operator_id: str | None = None
+
+
+class ToolDispatchRequest(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    workflow_id: str
+    scope: str
+    action_id: str
+    action: str
+    risk_level: Literal["low", "medium", "high"]
+    reversible: bool
+    idempotent: bool = True
+    payload: dict[str, Any] = Field(default_factory=dict)
+    trace_id: str = "trace-local"
 
 
 class IncidentCreateRequest(BaseModel):
@@ -116,14 +138,52 @@ def _build_daemon(base_dir: Path) -> AuditDaemon:
     )
 
 
+def _append_audit_event(
+    *,
+    daemon: AuditDaemon,
+    component_id: str,
+    key_id: str,
+    secret: str,
+    event_type: str,
+    payload: dict[str, Any],
+    trace_id: str = "trace-local",
+) -> None:
+    req = sign_request(
+        component_id=component_id,
+        key_id=key_id,
+        secret=secret,
+        event_id=str(uuid.uuid4()),
+        event_type=event_type,
+        payload=payload,
+        trace_id=trace_id,
+        timestamp=datetime.now(timezone.utc),
+    )
+    daemon.append_event(req)
+
+
+def _find_workflow_dir(root: Path, workflow_id: str) -> Path:
+    for p in root.glob(f"sessions/*/workflows/{workflow_id}"):
+        if p.is_dir():
+            return p
+    raise HTTPException(status_code=404, detail="workflow not found")
+
+
 def create_app(base_dir: str | Path = ".") -> FastAPI:
     root = Path(base_dir)
     app = FastAPI(title="Agora API", version="v7.1")
 
     rules_path = root / "policy" / "routing_rules.yaml"
+    scopes_path = root / "config" / "permissions_scopes.yaml"
+    if not scopes_path.exists():
+        scopes_path = Path(__file__).resolve().parents[1] / "config" / "permissions_scopes.yaml"
     app.state.rule_engine = RuleEngine.from_yaml(rules_path)
     app.state.base_dir = root
     app.state.audit_daemon = _build_daemon(root)
+    app.state.execution_controller = ExecutionController(scopes_path)
+    app.state.tool_worker = ToolWorker(
+        execution_controller=app.state.execution_controller,
+        irreversibility_gate=IrreversibilityGate(),
+    )
 
     @app.post("/v1/sessions", response_model=SessionCreateResponse)
     def create_session(req: SessionCreateRequest) -> SessionCreateResponse:
@@ -175,16 +235,19 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
         state["workflows"] = workflows
         _write_json(state_path, state)
 
-        audit_line = {
-            "event_id": str(uuid.uuid4()),
-            "timestamp": _now_iso(),
-            "component": "gateway",
-            "event_type": "workflow_created",
-            "workflow_id": workflow_id,
-            "route": decision.workflow_type,
-        }
-        with (session_dir / "audit.jsonl").open("a", encoding="utf-8") as f:
-            f.write(json.dumps(audit_line, ensure_ascii=True) + "\n")
+        _append_audit_event(
+            daemon=app.state.audit_daemon,
+            component_id="gateway",
+            key_id=os.getenv("AUDIT_ACTIVE_KEY_ID", "key_v1"),
+            secret=os.getenv("AUDIT_KEY_GATEWAY", "dev-secret-gateway"),
+            event_type="workflow_created",
+            payload={
+                "workflow_id": workflow_id,
+                "session_id": session_id,
+                "route": decision.workflow_type,
+            },
+            trace_id=f"trace-{workflow_id}",
+        )
 
         return MessageResponse(
             workflow_id=workflow_id,
@@ -217,24 +280,37 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
 
     @app.post("/v1/tools/approve")
     def tools_approve(req: ToolApproveRequest) -> dict[str, Any]:
+        wf_dir = _find_workflow_dir(root, req.workflow_id)
+        approval_path = wf_dir / "approval.json"
+        approval_payload = _read_json(approval_path, {"actions": {}})
+        actions = dict(approval_payload.get("actions", {}))
+        actions[req.action_id] = {
+            "status": "approved" if req.approved else "rejected",
+            "operator_id": req.operator_id,
+            "applied_at": _now_iso(),
+        }
+        approval_payload["actions"] = actions
+        _write_json(approval_path, approval_payload)
         return {
             "workflow_id": req.workflow_id,
             "action_id": req.action_id,
-            "approved": req.approved,
+            "status": "approved" if req.approved else "rejected",
             "operator_id": req.operator_id,
-            "at": _now_iso(),
+            "applied_at": actions[req.action_id]["applied_at"],
         }
 
     @app.get("/v1/audit/{workflow_id}")
     def get_audit(workflow_id: str) -> dict[str, Any]:
         events: list[dict[str, Any]] = []
-        for p in root.glob("sessions/*/audit.jsonl"):
-            for line in p.read_text(encoding="utf-8").splitlines():
-                if not line.strip():
-                    continue
-                row = json.loads(line)
-                if row.get("workflow_id") == workflow_id:
-                    events.append(row)
+        audit_log = root / "audit" / "audit.jsonl"
+        if not audit_log.exists():
+            return {"workflow_id": workflow_id, "events": []}
+        for line in audit_log.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if row.get("payload", {}).get("workflow_id") == workflow_id:
+                events.append(row)
         return {"workflow_id": workflow_id, "events": events}
 
     @app.get("/v1/consistency/check")
@@ -332,13 +408,48 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
             "wrote_to_wal": result.wrote_to_wal,
         }
 
+    @app.post("/internal/tools/dispatch")
+    def internal_tools_dispatch(req: ToolDispatchRequest) -> dict[str, Any]:
+        wf_dir = _find_workflow_dir(root, req.workflow_id)
+        session_id = wf_dir.parent.parent.name
+        action = ToolActionRequest(
+            workflow_id=req.workflow_id,
+            action_id=req.action_id,
+            action=req.action,
+            risk_level=req.risk_level,  # validated by pydantic enum in model
+            reversible=req.reversible,
+            idempotent=req.idempotent,
+            payload={**req.payload, "session_id": session_id},
+        )
+        result = app.state.tool_worker.execute(req.scope, action, root)
+        return {
+            "workflow_id": req.workflow_id,
+            "action_id": req.action_id,
+            "status": result.status,
+            "reason": result.reason,
+            "output": result.output,
+        }
+
     @app.post("/internal/sandbox-gc/run")
     def internal_sandbox_gc_run() -> dict[str, Any]:
         gc = SandboxGC("/tmp/agora-sandbox", ttl_minutes=30)
         result = gc.run_once()
+        _append_audit_event(
+            daemon=app.state.audit_daemon,
+            component_id="verification",
+            key_id=os.getenv("AUDIT_ACTIVE_KEY_ID", "key_v1"),
+            secret=os.getenv("AUDIT_KEY_VERIFICATION", "dev-secret-verification"),
+            event_type="sandbox_gc_run",
+            payload={
+                "scanned": result.scanned,
+                "cleaned": result.removed,
+                "skipped_active": result.skipped_active,
+            },
+            trace_id="trace-sandbox-gc",
+        )
         return {
             "scanned": result.scanned,
-            "cleaned": result.cleaned,
+            "cleaned": result.removed,
             "skipped_active": result.skipped_active,
         }
 

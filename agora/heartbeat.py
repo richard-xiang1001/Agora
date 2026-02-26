@@ -4,8 +4,12 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 import yaml
+
+from agora.audit_daemon import sign_request
+from agora.models import AuditAppendRequest
 
 
 @dataclass(frozen=True)
@@ -22,7 +26,16 @@ class HeartbeatScheduler:
         self.allowed_ops = set(payload.get("allowed_operations", []))
         self.denied_ops = set(payload.get("denied_operations", []))
 
-    def run_once(self, requested_operations: list[str], output_dir: str | Path) -> HeartbeatResult:
+    def run_once(
+        self,
+        requested_operations: list[str],
+        output_dir: str | Path,
+        audit_append: Callable[[AuditAppendRequest], object] | None = None,
+        component_id: str = "heartbeat",
+        key_id: str = "key_v1",
+        secret: str | None = None,
+        trace_id: str = "trace-heartbeat",
+    ) -> HeartbeatResult:
         out_dir = Path(output_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -63,5 +76,22 @@ class HeartbeatScheduler:
             "",
         ]
         md_path.write_text("\n".join(md), encoding="utf-8")
+
+        if audit_append is not None and secret:
+            req = sign_request(
+                component_id=component_id,
+                key_id=key_id,
+                secret=secret,
+                event_id=f"hb-{int(now.timestamp() * 1000)}",
+                event_type="heartbeat_run",
+                payload={
+                    "allowed": allowed,
+                    "blocked": blocked,
+                    "report_path": str(md_path),
+                },
+                trace_id=trace_id,
+                timestamp=now,
+            )
+            audit_append(req)
 
         return HeartbeatResult(allowed=allowed, blocked=blocked, report_path=str(md_path))

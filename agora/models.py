@@ -110,3 +110,30 @@ class AuditEvent(BaseModel):
     event_type: str
     payload: dict
     trace_id: str
+
+
+class ApprovalState(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class ToolActionRequest(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    workflow_id: str
+    action_id: str
+    action: str
+    risk_level: Literal["low", "medium", "high"]
+    reversible: bool
+    idempotent: bool
+    approval_required: bool = False
+    payload: dict = Field(default_factory=dict)
+
+
+class ToolAuthorizationResult(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    allowed: bool
+    reason: str
+    approval_state: ApprovalState | None = None

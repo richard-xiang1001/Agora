@@ -1,0 +1,10 @@
+failure_id: AGR-007
+component: audit
+trigger: "API workflow creation path previously wrote session audit file directly"
+observed: "Audit writes bypassed daemon-only append path and could violate single-writer invariant"
+expected: "All audit events append through AuditDaemon with seq_no allocation and HMAC verification"
+root_cause: "API submit_message used direct file append instead of daemon append helper"
+next_week_action: "add regression test to block direct sessions audit append and enforce daemon-only helper usage"
+severity: high
+test_category: audit_integrity
+date: 2026-02-26

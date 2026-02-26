@@ -1,0 +1,10 @@
+failure_id: AGR-008
+component: router
+trigger: openrouter_healthcheck_dns_failure
+observed: dns_error:gaierror:[Errno 8] nodename nor servname provided, or not known
+expected: OpenRouter endpoint reachable and free model returns minimal response
+root_cause: OpenRouter live healthcheck failed
+next_week_action: add DNS resolver retry and host reachability diagnostics for openrouter.ai
+severity: medium
+test_category: fallback
+date: '2026-02-26'
