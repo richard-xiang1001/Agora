@@ -1,0 +1,10 @@
+failure_id: AGR-003
+component: sandbox
+trigger: "Week 3 acceptance script invoked unittest with package-style module path"
+observed: "Test runner resolved external tests package and failed to import local test modules"
+expected: "Week 3 acceptance should target local tests directory deterministically"
+root_cause: "Acceptance command used module path invocation vulnerable to package shadowing"
+next_week_action: "Use unittest discover with explicit local test patterns and add command-level regression check in CI"
+severity: medium
+test_category: fallback
+date: 2026-02-26

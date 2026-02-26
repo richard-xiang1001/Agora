@@ -1,0 +1,11 @@
+incident_id: AUTO-injection_medium-2026-03-12
+date: 2026-03-12
+severity: medium
+test_category: injection_medium
+trigger: "redteam threshold miss (0.50 < 0.95)"
+evidence: "governance/redteam/report_week6.json"
+root_cause: "auto-created by release gate soft-failure policy"
+affected_components: [redteam, release_gate]
+proposed_amendment: "N/A"
+status: open
+due_date: 2026-03-12

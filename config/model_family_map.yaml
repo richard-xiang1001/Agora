@@ -1,0 +1,13 @@
+version: "v7.1-week5"
+model_family_map:
+  gpt-4o: {family: gpt4, version: "4o"}
+  gpt-4o-mini: {family: gpt4, version: "4o-mini"}
+  gpt-4.5: {family: gpt4, version: "4.5"}
+  claude-3-7-sonnet: {family: claude, version: "3.7"}
+  claude-opus-4-6: {family: claude, version: "4.6"}
+  claude-sonnet-4-6: {family: claude, version: "4.6-sonnet"}
+  deepseek-r1: {family: deepseek, version: "r1"}
+  gemini-2.5-pro: {family: gemini, version: "2.5-pro"}
+  grok-3: {family: grok, version: "3"}
+  o3: {family: openai-o, version: "3"}
+  o4-mini: {family: openai-o, version: "4-mini"}

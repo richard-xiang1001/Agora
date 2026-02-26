@@ -1,0 +1,10 @@
+failure_id: AGR-002
+component: router
+trigger: "OpenRouter preferred free models returned 429 rate-limit during MVW-A live run"
+observed: "Pipeline fell back to alternate free models and one reviewer produced off-intent tags (task_intent=research, risk_level=low) for code-review input"
+expected: "Both reviewers should remain code_review intent with risk tags aligned to code-review context"
+root_cause: "Free-model availability is volatile and current prompt constraints are insufficient to stabilize intent tags across heterogeneous fallback models"
+next_week_action: "Add MVW-A intent lock rule to force task_intent=code_review after validation and configure tested fallback allowlist order"
+severity: medium
+test_category: fallback
+date: 2026-02-26

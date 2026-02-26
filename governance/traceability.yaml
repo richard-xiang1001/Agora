@@ -1,0 +1,45 @@
+constitution_version: "v0.1"
+test_threshold_version: "v0.1"
+entries:
+  - clause_id: "4.1"
+    description: "禁止大规模伤害协助"
+    behavioral: true
+    constitution_version: "v0.1"
+    test_threshold_version: "v0.1"
+    modules:
+      - policy/hard_constraints.py
+    tests:
+      - tests/test_hard_constraints.py
+    coverage_note: "Hard-constraint prompts for mass harm must always be blocked."
+  - clause_id: "6.2"
+    description: "FinalDecision 四要素与挂起约束"
+    behavioral: true
+    constitution_version: "v0.1"
+    test_threshold_version: "v0.1"
+    modules:
+      - workflows/final_decision.py
+    tests:
+      - tests/test_final_decision.py
+    coverage_note: "Decision output must contain source, confidence, assumptions, uncertainties."
+  - clause_id: "13.1"
+    description: "Heartbeat 仅允许白名单低风险动作"
+    behavioral: true
+    constitution_version: "v0.1"
+    test_threshold_version: "v0.1"
+    modules:
+      - agora/heartbeat.py
+      - config/heartbeat_contract.yaml
+    tests:
+      - tests/test_heartbeat.py
+    coverage_note: "Heartbeat denies non-whitelisted operations and must emit run report."
+  - clause_id: "11.1"
+    description: "失败报告结构化并可追踪"
+    behavioral: true
+    constitution_version: "v0.1"
+    test_threshold_version: "v0.1"
+    modules:
+      - governance/failure_report_schema.yaml
+      - scripts/lint_failure_report.py
+    tests:
+      - tests/test_failure_report_lint.py
+    coverage_note: "Failure reports must use required incident-compatible fields."

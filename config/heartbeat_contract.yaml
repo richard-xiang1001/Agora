@@ -1,0 +1,11 @@
+interval_minutes: 15
+allowed_operations:
+  - mark_stale_decisions
+  - generate_retry_suggestions
+  - trigger_human_review_notification
+  - sandbox_gc_run
+denied_operations:
+  - tool_execute
+  - file_delete
+  - config_modify
+  - external_write_api

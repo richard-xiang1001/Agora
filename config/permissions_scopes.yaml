@@ -1,0 +1,17 @@
+version: "v7.1"
+scopes:
+  scope_unknown_intersection:
+    allowed_operations:
+      - read_session_file
+      - read_goal_file
+      - generate_text_report
+      - write_decision_draft
+    denied_operations:
+      - tool_execute
+      - file_patch_apply
+      - config_write
+      - external_write_api
+      - irreversible_action
+    notes:
+      - "Machine-enforceable operation enum only; no natural-language intent checks."
+      - "Week 3 review item: reassess write_decision_draft risk and potentially remove."

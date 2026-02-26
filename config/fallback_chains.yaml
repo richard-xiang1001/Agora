@@ -1,0 +1,19 @@
+version: "v7.1-week2"
+fallback_chains:
+  orchestration: [gpt-4.5, claude-3.7, gemini-2.5-pro]
+  reasoning: [o3, gemini-2.5-pro, gpt-4.5]
+  coding: [claude-3.7, o4-mini, gpt-4o]
+  search: [grok-3, gemini-2.5-pro]
+  fast: [o4-mini, gpt-4o, deepseek-r1]
+  chinese: [deepseek-r1, claude-3.7]
+
+failover_triggers:
+  - timeout
+  - http_5xx
+  - policy_rejection
+  - invalid_structured_output
+
+recovery:
+  strategy: exponential_backoff
+  auto_return_to_primary: true
+  audit_on_switch: true

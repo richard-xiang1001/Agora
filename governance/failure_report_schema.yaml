@@ -1,0 +1,57 @@
+schema_version: "1.0"
+required_fields:
+  - failure_id
+  - component
+  - trigger
+  - observed
+  - expected
+  - root_cause
+  - next_week_action
+  - severity
+  - test_category
+  - date
+
+field_rules:
+  failure_id:
+    pattern: '^AGR-\d{3}$'
+  component:
+    enum:
+      - gateway
+      - router
+      - orchestrator
+      - debate
+      - verification
+      - audit
+      - sandbox
+      - memory
+      - skill
+      - heartbeat
+      - constitution
+  severity:
+    enum:
+      - critical
+      - high
+      - medium
+      - low
+  test_category:
+    enum:
+      - hard_constraint
+      - injection
+      - privilege
+      - memory_poisoning
+      - heartbeat_abuse
+      - fallback
+      - audit_integrity
+  date:
+    format: date
+
+lint_rules:
+  - next_week_action must be specific and actionable
+  - next_week_action must not contain vague-only verbs without target
+  - failure_id must match AGR-XXX format
+
+vague_phrases:
+  - improve
+  - enhance
+  - optimize
+  - make better

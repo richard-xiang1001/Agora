@@ -1,0 +1,23 @@
+{
+  "version": "v7.1-week5",
+  "entries": [
+    {
+      "name": "code_review",
+      "path": "skills/code_review/SKILL.md",
+      "sha256": "c6c30459a130b7b3926c721c227ec6dada3b8e5777ded8963e7d5b0a25103953",
+      "permissions_scope": "scope_code_review",
+      "approval_level": "developer"
+    },
+    {
+      "name": "research_brief",
+      "path": "skills/research_brief/SKILL.md",
+      "sha256": "a8fc644e27b4fc43c6d0a0884b2286a255ed2f9edc760193ae944c6deef79912",
+      "permissions_scope": "scope_unknown_intersection",
+      "approval_level": "developer"
+    }
+  ],
+  "approval_policy": {
+    "scope_change_or_new_skill_requires_maintainer": true,
+    "hash_only_change_allows_developer": true
+  }
+}

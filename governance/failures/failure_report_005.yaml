@@ -1,0 +1,10 @@
+failure_id: AGR-005
+component: memory
+trigger: "Week 5 acceptance loaded memory profile front matter with ISO datetime strings"
+observed: "MemoryProfile strict parsing rejected created_at/expires_at/last_updated read from markdown front matter"
+expected: "Memory loader should parse persisted ISO datetime strings into typed fields without manual cleanup"
+root_cause: "MemoryProfile strict model lacked pre-validation datetime coercion for serialized front matter values"
+next_week_action: "Keep datetime coercion validators for memory profile metadata and add regression coverage for Z-suffix timestamps"
+severity: medium
+test_category: fallback
+date: 2026-02-26

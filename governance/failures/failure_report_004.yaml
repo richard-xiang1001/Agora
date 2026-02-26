@@ -1,0 +1,10 @@
+failure_id: AGR-004
+component: audit
+trigger: "Week 4 acceptance run hit replay parse and projector resource warning edge cases"
+observed: "WAL replay failed on RFC3339 timestamp string coercion and StateProjector emitted sqlite resource warnings"
+expected: "WAL replay should parse persisted timestamps and projector connections should close cleanly without warnings"
+root_cause: "Replay path lacked timestamp coercion and sqlite connection context usage relied on transaction manager without explicit close"
+next_week_action: "Add explicit timestamp coercion in replay path and enforce sqlite closing in projector with regression tests"
+severity: medium
+test_category: audit_integrity
+date: 2026-02-26

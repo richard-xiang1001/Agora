@@ -1,0 +1,10 @@
+failure_id: AGR-001
+component: router
+trigger: "Feature extractor returned unsupported task_intent value in pilot run"
+observed: "Request downgraded to unknown route and produced overly generic analysis output"
+expected: "Unknown route should still emit bounded, code-review-specific summary template"
+root_cause: "Unknown-route prompt template was not specialized for MVW-A context"
+next_week_action: "Add unknown-route MVW-A template and branch-specific golden sample for invalid_enum path"
+severity: medium
+test_category: fallback
+date: 2026-02-26

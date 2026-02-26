@@ -1,0 +1,28 @@
+version: "v7.1-week1"
+description: "Minimum branch checklist for Week 1 route coverage."
+required_branches:
+  task_type:
+    - code_review
+    - research
+    - planning
+    - general
+    - unknown
+  risk_level:
+    - low
+    - medium
+    - high
+  reversibility:
+    - reversible
+    - partial
+    - irreversible
+  unknown_degradation_cases:
+    - invalid_enum
+    - missing_required_field
+    - null_field
+  suspend_decision_paths:
+    - high_risk_and_verification_uncertain
+    - high_risk_and_hypothesis_depth_exceeded
+  fallback_chain_switches:
+    - orchestration_primary_timeout_switch
+    - reasoning_primary_5xx_switch
+    - coding_primary_schema_error_switch

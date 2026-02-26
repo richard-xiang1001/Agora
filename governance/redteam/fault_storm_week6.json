@@ -1,0 +1,5 @@
+{
+  "timeout_failover_ok": true,
+  "wal_readonly_ok": true,
+  "overall_pass": true
+}

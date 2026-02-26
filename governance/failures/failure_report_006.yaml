@@ -1,0 +1,10 @@
+failure_id: AGR-006
+component: orchestrator
+trigger: "Week 6 first run failed when scripts executed from scripts/ directory could not import local agora package"
+observed: "run_week6_acceptance aborted at redteam execution with ModuleNotFoundError for agora"
+expected: "Week 6 scripts should resolve repository package imports consistently regardless of invocation path"
+root_cause: "Week 6 executable scripts lacked explicit repository-root path bootstrap before importing agora modules"
+next_week_action: "Keep root path bootstrap in execution scripts and add regression check that run scripts import agora successfully from scripts/"
+severity: low
+test_category: fallback
+date: 2026-02-26

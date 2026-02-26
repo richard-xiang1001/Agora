@@ -1,0 +1,64 @@
+version: "v7.1-week2-initial"
+rules:
+  - name: hard_constraint_reject
+    priority: 0
+    match:
+      keywords:
+        - "生物武器"
+        - "化学武器"
+        - "核武器"
+        - "terror attack"
+        - "critical infrastructure sabotage"
+    route: reject
+    permissions_scope: none
+    fallback_chain: []
+    debate_trigger: {}
+    owner: maintainer
+    created_at: 2026-02-26
+    sunset_at: null
+    test_cases: [AGR-TC-001, AGR-TC-002]
+
+  - name: code_review
+    priority: 10
+    match:
+      task_intent: code_review
+    route: code_review_workflow
+    verification_strategy:
+      chain:
+        - minimal_poc_in_sandbox
+        - targeted_test_replay
+        - human_review
+      sandbox_spec:
+        isolation: subprocess
+        network: false
+        writable_path: "/tmp/agora-sandbox/{workflow_id}"
+        timeout_seconds: 10
+      max_hypothesis_rounds: 2
+    permissions_scope: scope_code_review
+    fallback_chain:
+      - claude-3.7
+      - o4-mini
+      - gpt-4o
+    debate_trigger:
+      risk_level: [medium, high]
+      irreversibility: [partial, irreversible]
+    owner: maintainer
+    created_at: 2026-02-26
+    sunset_at: null
+    test_cases: [AGR-TC-010, AGR-TC-011]
+
+  - name: unknown
+    priority: 999
+    match:
+      task_intent: unknown
+    route: unknown_workflow
+    permissions_scope: scope_unknown_intersection
+    fallback_chain:
+      - o4-mini
+      - gpt-4o
+    debate_trigger:
+      risk_level: [high]
+    owner: maintainer
+    created_at: 2026-02-26
+    sunset_at: null
+    test_cases: [AGR-TC-099]
