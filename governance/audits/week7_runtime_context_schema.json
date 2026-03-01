@@ -1,0 +1,7 @@
+{
+  "required_fields": [
+    "run_id",
+    "t0",
+    "started_at"
+  ]
+}

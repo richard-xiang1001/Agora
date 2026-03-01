@@ -27,6 +27,7 @@ field_rules:
       - skill
       - heartbeat
       - constitution
+      - governance
   severity:
     enum:
       - critical
@@ -37,11 +38,15 @@ field_rules:
     enum:
       - hard_constraint
       - injection
+      - injection_high
+      - injection_medium
       - privilege
       - memory_poisoning
       - heartbeat_abuse
       - fallback
       - audit_integrity
+      - failure_storm
+      - governance
   date:
     format: date
 

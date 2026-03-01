@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from pathlib import Path
+import subprocess
+
+import yaml
 
 from agora.execution_controller import ExecutionController
 from agora.irreversibility_gate import IrreversibilityGate
@@ -23,9 +27,42 @@ class ToolWorker:
         self,
         execution_controller: ExecutionController,
         irreversibility_gate: IrreversibilityGate,
+        sandbox_spec_path: str | Path | None = None,
+        runtime_capabilities_path: str | Path | None = None,
     ) -> None:
         self.execution_controller = execution_controller
         self.irreversibility_gate = irreversibility_gate
+        self.sandbox_spec = self._load_sandbox_spec(sandbox_spec_path)
+        self.runtime_capabilities = self._load_runtime_capabilities(runtime_capabilities_path)
+
+    @staticmethod
+    def _load_sandbox_spec(path: str | Path | None) -> dict[str, object]:
+        if path is None:
+            return {}
+        p = Path(path)
+        if not p.exists():
+            return {}
+        payload = yaml.safe_load(p.read_text(encoding="utf-8"))
+        return payload if isinstance(payload, dict) else {}
+
+    @staticmethod
+    def _load_runtime_capabilities(path: str | Path | None) -> dict[str, object]:
+        default = {
+            "l3_isolation_mode": "unimplemented",
+            "allow_sandbox_verification_without_l3": False,
+            "sandbox_backend": "docker_compose",
+        }
+        if path is None:
+            return default
+        p = Path(path)
+        if not p.exists():
+            return default
+        payload = yaml.safe_load(p.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return default
+        merged = dict(default)
+        merged.update(payload)
+        return merged
 
     def execute(self, scope: str, action: ToolActionRequest, base_dir: str | Path) -> ToolWorkerResult:
         gate = self.irreversibility_gate.require_approval(action)
@@ -43,7 +80,15 @@ class ToolWorker:
                 reason=auth.reason,
             )
 
-        output = self._dispatch(action, Path(base_dir))
+        try:
+            output = self._dispatch(action, Path(base_dir))
+        except PermissionError as exc:
+            return ToolWorkerResult(
+                status="rejected",
+                action_id=action.action_id,
+                output=None,
+                reason=str(exc),
+            )
         return ToolWorkerResult(
             status="allowed",
             action_id=action.action_id,
@@ -78,5 +123,66 @@ class ToolWorker:
             text = str(action.payload.get("content", "")).rstrip() + "\n"
             out.write_text(text, encoding="utf-8")
             return str(out)
+
+        if action.action == "prepare_sandbox_poc":
+            wf = action.workflow_id
+            raw_tpl = str(
+                self.sandbox_spec.get("writable_path", "/tmp/agora-sandbox/{workflow_id}")
+            )
+            sandbox_dir = Path(raw_tpl.replace("{workflow_id}", wf))
+            sandbox_dir.mkdir(parents=True, exist_ok=True)
+            poc = sandbox_dir / "poc.txt"
+            poc.write_text(str(action.payload.get("content", "poc placeholder")) + "\n", encoding="utf-8")
+            return str(poc)
+
+        if action.action == "run_sandbox_verification":
+            wf = action.workflow_id
+            raw_tpl = str(
+                self.sandbox_spec.get("writable_path", "/tmp/agora-sandbox/{workflow_id}")
+            )
+            sandbox_dir = Path(raw_tpl.replace("{workflow_id}", wf))
+            sandbox_dir.mkdir(parents=True, exist_ok=True)
+            output = sandbox_dir / "verification_result.json"
+
+            l3_mode = str(self.runtime_capabilities.get("l3_isolation_mode", "unimplemented"))
+            backend = str(self.runtime_capabilities.get("sandbox_backend", "docker_compose"))
+
+            if l3_mode == "docker_compose" and backend == "docker_compose":
+                if bool(action.payload.get("network_request", False)):
+                    raise PermissionError("sandbox_network_denied")
+                timeout_seconds = int(self.sandbox_spec.get("timeout_seconds", 10))
+                cmd = ["docker", "compose", "version"]
+                try:
+                    proc = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                        timeout=timeout_seconds,
+                    )
+                    output.write_text(
+                        json.dumps(
+                            {
+                                "outcome": "uncertain",
+                                "source": "docker_compose",
+                                "status": "ok",
+                                "detail": proc.stdout.strip(),
+                            },
+                            ensure_ascii=True,
+                        )
+                        + "\n",
+                        encoding="utf-8",
+                    )
+                except subprocess.TimeoutExpired as exc:
+                    output.write_text(json.dumps({"outcome": "infra_error", "source": "docker_compose", "error": "timeout"}) + "\n", encoding="utf-8")
+                    raise PermissionError("sandbox_timeout") from exc
+                except subprocess.CalledProcessError as exc:
+                    output.write_text(json.dumps({"outcome": "infra_error", "source": "docker_compose", "error": "non_zero_exit"}) + "\n", encoding="utf-8")
+                    raise PermissionError("sandbox_backend_failed") from exc
+                return str(output)
+
+            # Stub branch for non-containerized mode (guarded by ExecutionController in default policy).
+            output.write_text('{"outcome":"uncertain","source":"sandbox_stub"}\n', encoding="utf-8")
+            return str(output)
 
         raise PermissionError(f"unsupported action: {action.action}")

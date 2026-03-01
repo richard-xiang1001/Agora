@@ -1,0 +1,27 @@
+{
+  "required_fields": [
+    "generated_at",
+    "source_failure_id",
+    "failure_report_id",
+    "docker_available",
+    "downgraded_risks",
+    "risks"
+  ],
+  "allowed_status": [
+    "met",
+    "not_met_pending_implementation"
+  ],
+  "required_risk_ids": [
+    "R-01",
+    "R-02",
+    "R-03",
+    "R-04",
+    "R-05",
+    "R-06",
+    "R-07",
+    "R-08",
+    "R-09",
+    "R-10",
+    "R-11"
+  ]
+}

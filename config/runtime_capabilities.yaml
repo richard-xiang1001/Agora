@@ -1,0 +1,4 @@
+l3_isolation_mode: unimplemented
+allow_sandbox_verification_without_l3: false
+sandbox_backend: docker_compose
+sandbox_image: agora-sandbox:latest

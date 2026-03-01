@@ -1,0 +1,9 @@
+version: "3.9"
+services:
+  sandbox:
+    image: agora-sandbox:latest
+    network_mode: "none"
+    read_only: true
+    tmpfs:
+      - /tmp/agora-sandbox
+    mem_limit: 256m

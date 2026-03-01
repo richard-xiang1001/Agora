@@ -92,10 +92,31 @@ def _run_live_probe(base: Path) -> tuple[bool, str]:
     return False, f"live_probe_error:{msg}"
 
 
+def check_health(*, mode: str, host: str, model: str) -> tuple[bool, str]:
+    if mode == "skip":
+        return True, "skip_mode"
+    if mode == "mock":
+        return True, "mock_mode_healthy"
+
+    ok_dns, dns_msg = _check_dns(host)
+    if not ok_dns:
+        return False, dns_msg
+    ok_live, live_msg = _check_openrouter_live(model)
+    if not ok_live:
+        return False, live_msg
+    return True, f"{dns_msg};{live_msg}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="OpenRouter free-model healthcheck with optional failure report emission.")
     parser.add_argument("--model", default=os.getenv("OPENROUTER_MODEL_A", "qwen/qwen3-4b:free"))
     parser.add_argument("--host", default="openrouter.ai")
+    parser.add_argument(
+        "--mode",
+        default=os.getenv("AGORA_HEALTHCHECK_MODE", "live"),
+        choices=["live", "mock", "skip"],
+        help="healthcheck mode: live(real network), mock(local healthy), skip(no check)",
+    )
     parser.add_argument("--write-failure-report", action="store_true")
     parser.add_argument("--probe-live-run", action="store_true")
     args = parser.parse_args()
@@ -103,7 +124,7 @@ def main() -> int:
     base = Path(__file__).resolve().parents[1]
 
     key = os.getenv("OPENROUTER_API_KEY")
-    if not key:
+    if args.mode == "live" and not key:
         msg = "missing OPENROUTER_API_KEY"
         print(f"[FAIL] {msg}")
         if args.write_failure_report:
@@ -116,27 +137,14 @@ def main() -> int:
             print(f"[INFO] wrote failure report: {out}")
         return 1
 
-    ok_dns, dns_msg = _check_dns(args.host)
-    print(f"[{'PASS' if ok_dns else 'FAIL'}] {dns_msg}")
-    if not ok_dns:
-        if args.write_failure_report:
-            out = _write_failure_report(
-                base,
-                trigger="openrouter_healthcheck_dns_failure",
-                observed=dns_msg,
-                next_week_action="add DNS resolver retry and host reachability diagnostics for openrouter.ai",
-            )
-            print(f"[INFO] wrote failure report: {out}")
-        return 1
-
-    ok_live, live_msg = _check_openrouter_live(args.model)
-    print(f"[{'PASS' if ok_live else 'FAIL'}] {live_msg}")
-    if not ok_live:
+    ok_health, health_msg = check_health(mode=args.mode, host=args.host, model=args.model)
+    print(f"[{'PASS' if ok_health else 'FAIL'}] {health_msg}")
+    if not ok_health:
         if args.write_failure_report:
             out = _write_failure_report(
                 base,
                 trigger="openrouter_healthcheck_live_failure",
-                observed=live_msg,
+                observed=health_msg,
                 next_week_action="add OpenRouter connectivity retry with timeout and provider failover diagnostics in mvw_a_run",
             )
             print(f"[INFO] wrote failure report: {out}")

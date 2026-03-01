@@ -1,0 +1,17 @@
+{
+  "required_fields": [
+    "source_failure_id",
+    "next_week_action_raw",
+    "docker_checks",
+    "docker_available",
+    "implemented_evidence",
+    "gaps",
+    "derived_work_items"
+  ],
+  "docker_checks_required_fields": [
+    "docker_cli_ok",
+    "docker_daemon_ok",
+    "compose_plugin_ok",
+    "compose_legacy_ok"
+  ]
+}

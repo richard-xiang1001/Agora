@@ -1,0 +1,12 @@
+{
+  "required_fields": [
+    "run_id",
+    "timestamp",
+    "t0",
+    "tests_passed",
+    "tests_failed",
+    "docker_available",
+    "executed_workflow_ids",
+    "downgraded_risks"
+  ]
+}

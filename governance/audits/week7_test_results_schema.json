@@ -1,0 +1,15 @@
+{
+  "required_fields": [
+    "test_name",
+    "status",
+    "started_at",
+    "finished_at",
+    "workflow_ids",
+    "notes"
+  ],
+  "valid_status": [
+    "pass",
+    "fail",
+    "skip"
+  ]
+}

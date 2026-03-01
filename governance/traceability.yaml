@@ -2,17 +2,22 @@ constitution_version: "v0.1"
 test_threshold_version: "v0.1"
 entries:
   - clause_id: "4.1"
-    description: "禁止大规模伤害协助"
+    description: "L1 hard-constraint fail-closed in API entrypoint"
     behavioral: true
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
     modules:
       - policy/hard_constraints.py
+      - agora/api.py
     tests:
       - tests/test_hard_constraints.py
-    coverage_note: "Hard-constraint prompts for mass harm must always be blocked."
+      - tests/test_api_hard_constraint_fail_closed.py
+      - tests/test_hard_constraint_guard_exception.py
+      - tests/test_e2e_hard_constraint_audit_modes.py
+    coverage_note: "Hard-constraint checks run before routing and fail-closed on guard errors."
+
   - clause_id: "6.2"
-    description: "FinalDecision 四要素与挂起约束"
+    description: "SUSPEND_DECISION uses fixed structured output template"
     behavioral: true
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
@@ -20,9 +25,58 @@ entries:
       - workflows/final_decision.py
     tests:
       - tests/test_final_decision.py
-    coverage_note: "Decision output must contain source, confidence, assumptions, uncertainties."
+    coverage_note: "SUSPEND requires REQUIRES_HUMAN_REVIEW + reason/action; free-text recommendation blocked."
+
+  - clause_id: "5.1"
+    description: "Audit daemon health-state persistence and degraded policy"
+    behavioral: true
+    constitution_version: "v0.1"
+    test_threshold_version: "v0.1"
+    modules:
+      - agora/audit_daemon.py
+      - config/audit_degradation_policy.yaml
+    tests:
+      - tests/test_audit_daemon.py
+      - tests/test_audit_health_state_persistence.py
+      - tests/test_health_recovery_without_new_append.py
+      - tests/test_pending_wal_events_is_derived.py
+      - tests/test_audit_append_protocol_v2.py
+      - tests/test_degraded_policy_enforcement.py
+      - tests/test_lint_degradation_policy.py
+      - tests/test_degraded_low_risk_unknown_scope.py
+    coverage_note: "Health state is persisted, derived from WAL filesystem facts, and consumed by degraded enforcement."
+
+  - clause_id: "8.1"
+    description: "Release gate category normalization and overdue escalation"
+    behavioral: true
+    constitution_version: "v0.1"
+    test_threshold_version: "v0.1"
+    modules:
+      - agora/release_gate.py
+      - scripts/run_release_gate.py
+    tests:
+      - tests/test_release_gate.py
+    coverage_note: "injection_high/medium normalized to injection with detail preserved in incidents."
+
+  - clause_id: "9.1"
+    description: "Execution scope enforcement and L3 capability gate"
+    behavioral: true
+    constitution_version: "v0.1"
+    test_threshold_version: "v0.1"
+    modules:
+      - agora/execution_controller.py
+      - agora/tool_worker.py
+      - config/permissions_scopes.yaml
+      - config/runtime_capabilities.yaml
+      - config/sandbox_spec.yaml
+    tests:
+      - tests/test_execution_controller.py
+      - tests/test_tool_worker_flow.py
+      - tests/test_tool_worker_l3_guard.py
+    coverage_note: "unknown scope is strictest; sandbox operations blocked when L3 isolation is unavailable."
+
   - clause_id: "13.1"
-    description: "Heartbeat 仅允许白名单低风险动作"
+    description: "Heartbeat requires auditable output by default"
     behavioral: true
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
@@ -31,15 +85,78 @@ entries:
       - config/heartbeat_contract.yaml
     tests:
       - tests/test_heartbeat.py
-    coverage_note: "Heartbeat denies non-whitelisted operations and must emit run report."
+      - tests/test_heartbeat_audit.py
+    coverage_note: "Heartbeat raises if audit hook/secret missing unless explicit test override."
+
   - clause_id: "11.1"
-    description: "失败报告结构化并可追踪"
+    description: "Failure reports and recovery governance are machine-linted"
     behavioral: true
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
     modules:
       - governance/failure_report_schema.yaml
+      - governance/recovery_policy.yaml
+      - governance/recovery_policy_schema.yaml
+      - governance/traceability_whitelist.yaml
       - scripts/lint_failure_report.py
+      - scripts/lint_recovery_policy.py
+      - scripts/lint_traceability_whitelist.py
+      - scripts/check_traceability.py
+      - scripts/check_traceability_completeness.py
+      - scripts/discovery_gate.py
     tests:
       - tests/test_failure_report_lint.py
-    coverage_note: "Failure reports must use required incident-compatible fields."
+      - tests/test_lint_recovery_policy.py
+      - tests/test_lint_traceability_whitelist.py
+    coverage_note: "Governance policy files are schema/lint guarded and completeness checked against key paths."
+
+  - clause_id: "ops.0"
+    description: "Operational entrypoints covered in traceability completeness"
+    behavioral: false
+    constitution_version: "v0.1"
+    test_threshold_version: "v0.1"
+    modules:
+      - agora/__init__.py
+      - agora/debate_engine.py
+      - agora/decision_state_machine.py
+      - agora/fallback.py
+      - agora/fault_storm.py
+      - agora/feature_validation.py
+      - agora/fileio.py
+      - agora/irreversibility_gate.py
+      - agora/memory_store.py
+      - agora/model_registry.py
+      - agora/models.py
+      - agora/redteam.py
+      - agora/rule_engine.py
+      - agora/sandbox_gc.py
+      - agora/state_projector.py
+      - agora/verification_engine.py
+      - config/fallback_chains.yaml
+      - config/model_family_map.yaml
+      - scripts/run_week1_acceptance.sh
+      - scripts/run_week2_acceptance.sh
+      - scripts/run_week3_acceptance.sh
+      - scripts/run_week4_acceptance.sh
+      - scripts/run_week5_acceptance.sh
+      - scripts/run_week6_acceptance.sh
+      - scripts/run_redteam_suite.py
+      - scripts/run_fault_storm_drill.py
+      - scripts/run_budget_persistence_integration.py
+    tests:
+      - tests/test_feature_and_routing.py
+      - tests/test_decision_state_machine.py
+      - tests/test_fallback.py
+      - tests/test_fault_storm.py
+      - tests/test_debate_engine.py
+      - tests/test_verification_engine.py
+      - tests/test_memory_store.py
+      - tests/test_model_registry.py
+      - tests/test_state_projector.py
+      - tests/test_redteam.py
+      - tests/test_api_contract.py
+      - tests/test_api_audit_single_writer.py
+      - tests/test_tools_approve_state.py
+      - tests/test_trace_event_schema_consistency.py
+      - tests/test_api_failure_mode_state_consumption.py
+    coverage_note: "Non-behavioral operational modules are tracked for completeness to prevent silent drift."

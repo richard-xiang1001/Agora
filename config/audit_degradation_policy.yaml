@@ -1,0 +1,10 @@
+version: v1
+max_degraded_seconds: 300
+max_degraded_requests: 50
+# Keep strategy configurable; behavior is enforced by tests, not hardcoded lint constants.
+low_risk_unknown_allowed: true
+allow_during_degraded:
+  risk_levels: [low]
+  routes: [unknown_workflow]
+  requires_tools: false
+on_budget_exceeded: block_all_messages

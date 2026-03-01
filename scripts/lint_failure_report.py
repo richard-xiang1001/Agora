@@ -22,6 +22,20 @@ SPECIFIC_VERBS = {
     "validate",
 }
 
+VALID_TEST_CATEGORIES = {
+    "hard_constraint",
+    "injection",
+    "injection_high",
+    "injection_medium",
+    "privilege",
+    "memory_poisoning",
+    "heartbeat_abuse",
+    "fallback",
+    "audit_integrity",
+    "failure_storm",
+    "governance",
+}
+
 
 def load_yaml(path: pathlib.Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
@@ -70,6 +84,17 @@ def lint_report(schema: dict[str, Any], report_path: pathlib.Path) -> list[str]:
                 errs.append(
                     "next_week_action is vague; include a concrete operation target"
                 )
+
+    category = report.get("test_category")
+    if not isinstance(category, str) or not category.strip():
+        errs.append("test_category must be non-empty string")
+    elif category not in VALID_TEST_CATEGORIES:
+        errs.append(f"test_category must be one of {sorted(VALID_TEST_CATEGORIES)}, got {category!r}")
+
+    if "test_category_detail" in report:
+        detail = report.get("test_category_detail")
+        if not isinstance(detail, str) or not detail.strip():
+            errs.append("test_category_detail must be non-empty string when provided")
 
     return errs
 

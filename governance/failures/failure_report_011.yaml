@@ -1,0 +1,10 @@
+failure_id: AGR-011
+component: governance
+trigger: "Week7 repair plan execution handoff after AGR-010"
+observed: "Week7 pre/final acceptance both passed; repair2_gap_report confirms docker_available=false and closure marks R-02 as not_met_pending_implementation while R-03/R-04/R-05 are met by lint plus test evidence"
+expected: "AGR-010 next_week_action should be fully closed with machine-verifiable week7 evidence artifacts"
+root_cause: "AGR-010 required machine-verifiable failure-mode transition checks, but pre/final artifact chain, closure synthesis, and Docker capability branch evidence were absent before this execution round"
+next_week_action: "design production traffic replay pipeline for red-team corpus and, after Docker daemon/compose become available, rerun test_tool_worker_l3_docker.py then update config/runtime_capabilities.yaml and closure status for R-02"
+severity: high
+test_category: governance
+date: 2026-02-28
