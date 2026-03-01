@@ -174,8 +174,11 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
 
     rules_path = root / "policy" / "routing_rules.yaml"
     scopes_path = root / "config" / "permissions_scopes.yaml"
+    runtime_caps_path = root / "config" / "runtime_capabilities.yaml"
     if not scopes_path.exists():
         scopes_path = Path(__file__).resolve().parents[1] / "config" / "permissions_scopes.yaml"
+    if not runtime_caps_path.exists():
+        runtime_caps_path = Path(__file__).resolve().parents[1] / "config" / "runtime_capabilities.yaml"
     app.state.rule_engine = RuleEngine.from_yaml(rules_path)
     app.state.base_dir = root
     app.state.audit_daemon = _build_daemon(root)
@@ -183,6 +186,7 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
     app.state.tool_worker = ToolWorker(
         execution_controller=app.state.execution_controller,
         irreversibility_gate=IrreversibilityGate(),
+        runtime_capabilities_path=runtime_caps_path,
     )
 
     @app.post("/v1/sessions", response_model=SessionCreateResponse)
