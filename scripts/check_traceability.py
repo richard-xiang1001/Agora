@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml
 
+ALLOWED_STATUS = {"met", "not_met_pending_implementation"}
+
 
 def load_yaml(path: pathlib.Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
@@ -29,6 +31,7 @@ def main() -> int:
     root = pathlib.Path(".").resolve()
 
     errors: list[str] = []
+    warnings: list[str] = []
     if not top_const or not top_test:
         errors.append("top-level constitution_version and test_threshold_version are required")
     if not isinstance(entries, list) or not entries:
@@ -41,9 +44,15 @@ def main() -> int:
 
         clause = entry.get("clause_id", f"entry[{i}]")
         behavioral = bool(entry.get("behavioral", False))
+        status = entry.get("status")
         note = str(entry.get("coverage_note", "")).strip()
         if not note:
             errors.append(f"{clause}: coverage_note is required")
+
+        if status is None:
+            warnings.append(f"{clause}: status missing (expected one of {sorted(ALLOWED_STATUS)})")
+        elif status not in ALLOWED_STATUS:
+            errors.append(f"{clause}: status invalid: {status!r} (allowed: {sorted(ALLOWED_STATUS)})")
 
         modules = entry.get("modules")
         tests = entry.get("tests")
@@ -74,6 +83,9 @@ def main() -> int:
             errors.append(
                 f"{clause}: behavioral=true requires constitution_version == test_threshold_version ({cver} != {tver})"
             )
+        if status == "met":
+            if not isinstance(tests, list) or not tests:
+                warnings.append(f"{clause}: status=met but tests list is empty")
 
     if errors:
         print("[FAIL] traceability checks")
@@ -81,6 +93,10 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
+    if warnings:
+        print("[WARN] traceability checks")
+        for w in warnings:
+            print(f"  - {w}")
     print("[PASS] traceability checks")
     return 0
 

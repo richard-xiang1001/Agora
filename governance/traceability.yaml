@@ -4,6 +4,7 @@ entries:
   - clause_id: "4.1"
     description: "L1 hard-constraint fail-closed in API entrypoint"
     behavioral: true
+    status: met
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
     modules:
@@ -19,6 +20,7 @@ entries:
   - clause_id: "6.2"
     description: "SUSPEND_DECISION uses fixed structured output template"
     behavioral: true
+    status: met
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
     modules:
@@ -30,6 +32,7 @@ entries:
   - clause_id: "5.1"
     description: "Audit daemon health-state persistence and degraded policy"
     behavioral: true
+    status: met
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
     modules:
@@ -49,6 +52,7 @@ entries:
   - clause_id: "8.1"
     description: "Release gate category normalization and overdue escalation"
     behavioral: true
+    status: met
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
     modules:
@@ -61,6 +65,7 @@ entries:
   - clause_id: "9.1"
     description: "Execution scope enforcement and L3 capability gate"
     behavioral: true
+    status: not_met_pending_implementation
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
     modules:
@@ -78,6 +83,7 @@ entries:
   - clause_id: "13.1"
     description: "Heartbeat requires auditable output by default"
     behavioral: true
+    status: met
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
     modules:
@@ -91,6 +97,7 @@ entries:
   - clause_id: "11.1"
     description: "Failure reports and recovery governance are machine-linted"
     behavioral: true
+    status: met
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
     modules:
@@ -113,6 +120,7 @@ entries:
   - clause_id: "ops.0"
     description: "Operational entrypoints covered in traceability completeness"
     behavioral: false
+    status: not_met_pending_implementation
     constitution_version: "v0.1"
     test_threshold_version: "v0.1"
     modules:
