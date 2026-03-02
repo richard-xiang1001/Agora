@@ -53,6 +53,8 @@ if [[ "$DRY_RUN" == "true" ]]; then
 EOF
 else
   OVERALL_FAIL=0
+  # NOTE: live-network checks are intentionally excluded from this default gate.
+  # Use scripts/run_prompt_embedding_live_gate.sh for OpenRouter-backed daily monitoring.
   if ! run_check "A0.headers" python3 "$ROOT/scripts/check_prompt_headers_consistency.py" --root "$ROOT"; then OVERALL_FAIL=1; fi
   if ! run_check "A1.catalog" python3 "$ROOT/scripts/check_prompt_catalog_consistency.py" --root "$ROOT"; then OVERALL_FAIL=1; fi
   if ! run_check "test.prompt_headers" python3 -m unittest discover -s "$ROOT/tests" -p "test_prompt_headers_consistency.py"; then OVERALL_FAIL=1; fi
