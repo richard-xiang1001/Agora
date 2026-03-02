@@ -147,7 +147,8 @@ entries:
       - tests/test_subagent_executor_real.py
       - tests/test_debate_executor_mock.py
       - tests/test_debate_executor_real.py
-    coverage_note: "Prompt assets and operator policy are loaded from versioned config with strict validation and runtime enforcement."
+      - tests/test_api_contract.py
+    coverage_note: "Prompt assets and operator policy are loaded from versioned config with strict validation and runtime enforcement; API runtime wiring includes debate/subagent execution split."
 
   - clause_id: "ops.0"
     description: "Operational entrypoints covered in traceability completeness"

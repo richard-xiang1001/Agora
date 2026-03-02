@@ -18,6 +18,7 @@ class ApiContractTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         for d in [
             "policy",
+            "config",
             "sessions",
             "governance",
             "governance/redteam",
@@ -38,7 +39,10 @@ class ApiContractTests(unittest.TestCase):
                             "route": "code_review_workflow",
                             "permissions_scope": "scope_code_review",
                             "fallback_chain": ["qwen/qwen3-4b:free"],
-                            "debate_trigger": {"risk_level": ["high"]},
+                            "debate_trigger": {
+                                "risk_level": ["high"],
+                                "subagent_disagreement": True,
+                            },
                         },
                         {
                             "name": "unknown",
@@ -98,6 +102,22 @@ class ApiContractTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        (self.root / "config" / "llm_policy.yaml").write_text(
+            yaml.safe_dump(
+                {
+                    "schema_version": "1.0",
+                    "provider": "openrouter",
+                    "mode": "mock",
+                    "model": "upstage/solar-pro-3:free",
+                    "timeout_seconds": 30,
+                    "max_retries": 2,
+                    "retry_on": [500, 502, 503],
+                    "fallback_on_error": False,
+                },
+                sort_keys=False,
+            ),
+            encoding="utf-8",
+        )
 
         self.client = TestClient(create_app(self.root))
 
@@ -124,15 +144,73 @@ class ApiContractTests(unittest.TestCase):
         )
         self.assertEqual(msg.status_code, 200)
         wf = msg.json()["workflow_id"]
+        self.assertEqual(msg.json()["prompt_profile_id"], "profile.debate_code_review")
+        self.assertTrue(isinstance(msg.json()["prompt_binding_hash"], str))
+        self.assertEqual(msg.json()["execution_mode"], "debate")
+        self.assertIsNone(msg.json().get("verdict"))
+        self.assertIn("debate_verdict", msg.json())
 
         status = self.client.get(f"/v1/workflows/{wf}")
         self.assertEqual(status.status_code, 200)
         self.assertEqual(status.json()["routing"]["workflow_type"], "code_review_workflow")
+        self.assertEqual(status.json()["prompt_binding"]["profile_id"], "profile.debate_code_review")
+        self.assertTrue(isinstance(status.json()["prompt_binding"]["binding_hash"], str))
+        self.assertEqual(status.json()["execution_mode"], "debate")
+        self.assertIn("debate_verdict", status.json())
 
         paused = self.client.post(f"/v1/workflows/{wf}/pause").json()
         self.assertEqual(paused["status"], "paused")
         resumed = self.client.post(f"/v1/workflows/{wf}/resume").json()
         self.assertEqual(resumed["status"], "running")
+
+    def test_code_review_low_risk_uses_subagent_path(self) -> None:
+        sid = self.client.post("/v1/sessions", json={"session_id": "s-2"}).json()["session_id"]
+        msg = self.client.post(
+            f"/v1/sessions/{sid}/messages",
+            json={
+                "command_text": "review small patch",
+                "raw_features": {
+                    "task_intent": "code_review",
+                    "risk_level": "low",
+                    "reversibility": "reversible",
+                    "requires_tools": False,
+                    "confidence": 0.9,
+                },
+                "subagent_disagreement": False,
+            },
+        )
+        self.assertEqual(msg.status_code, 200)
+        body = msg.json()
+        self.assertEqual(body["execution_mode"], "subagent")
+        self.assertIn("verdict", body)
+        self.assertIsNone(body.get("debate_verdict"))
+
+        wf = body["workflow_id"]
+        status = self.client.get(f"/v1/workflows/{wf}")
+        self.assertEqual(status.status_code, 200)
+        self.assertEqual(status.json()["execution_mode"], "subagent")
+        self.assertIn("verdict", status.json())
+
+    def test_subagent_disagreement_triggers_debate_on_low_risk(self) -> None:
+        sid = self.client.post("/v1/sessions", json={"session_id": "s-3"}).json()["session_id"]
+        msg = self.client.post(
+            f"/v1/sessions/{sid}/messages",
+            json={
+                "command_text": "review disagreement patch",
+                "raw_features": {
+                    "task_intent": "code_review",
+                    "risk_level": "low",
+                    "reversibility": "reversible",
+                    "requires_tools": False,
+                    "confidence": 0.9,
+                },
+                "subagent_disagreement": True,
+            },
+        )
+        self.assertEqual(msg.status_code, 200)
+        body = msg.json()
+        self.assertEqual(body["execution_mode"], "debate")
+        self.assertIn("debate_verdict", body)
 
     def test_route_preview_and_internal_audit(self) -> None:
         route = self.client.post(
