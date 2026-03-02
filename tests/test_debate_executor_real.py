@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import unittest
 from pathlib import Path
@@ -51,6 +52,12 @@ class DebateExecutorRealTests(unittest.TestCase):
         round3_content = round3_path.read_text(encoding="utf-8")
         self.assertGreater(len(round3_content.strip()), 50)
         self.assertNotIn("unavailable", round3_content.lower())
+        metrics_path = Path(verdict.session_dir) / "debate" / "debate_metrics.json"
+        self.assertTrue(metrics_path.exists())
+        metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+        self.assertIn("total_calls", metrics)
+        self.assertIn("retry_total", metrics)
+        self.assertIn("status_code_histogram", metrics)
         if verdict.decision != "SUSPEND":
             self.assertTrue(bool((verdict.recommendation or "").strip()))
             self.assertGreater(len((verdict.recommendation or "").strip()), 20)

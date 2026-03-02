@@ -69,7 +69,8 @@ class DebateExecutorMockTests(unittest.TestCase):
             self.assertIn("mode: suspend", text)
 
     def test_round2_anonymized_payload_has_no_role_labels(self) -> None:
-        round1_outputs = {rid: f"VERDICT: APPROVE from {rid}" for rid in ROUND1_ROLE_IDS}
+        long = "A" * 1200
+        round1_outputs = {rid: f"{long}\nVERDICT: APPROVE from {rid}" for rid in ROUND1_ROLE_IDS}
         payload = self.executor._build_round2_user_input(  # noqa: SLF001
             diff="sample",
             routing_features=self.routing_features,
@@ -78,6 +79,7 @@ class DebateExecutorMockTests(unittest.TestCase):
         )
         for rid in ROUND1_ROLE_IDS:
             self.assertNotIn(rid, payload)
+        self.assertIn("[TRUNCATED]", payload)
 
 
 if __name__ == "__main__":
