@@ -136,6 +136,14 @@ entries:
       - config/operator_policy.yaml
       - config/llm_policy.yaml
       - scripts/run_debate.py
+      - scripts/install_prompt_embedding_live_cron.sh
+      - scripts/check_prompt_embedding_live_cron.py
+      - scripts/benchmark_debate_latency.py
+      - scripts/lint_debate_latency_benchmark.py
+      - scripts/run_prompt_embedding_live_gate.sh
+      - scripts/run_prompt_embedding_live_daily.sh
+      - scripts/run_prompt_embedding_completion_gate.sh
+      - scripts/lint_prompt_embedding_live_gate.py
     tests:
       - tests/test_operator_policy_loading.py
       - tests/test_prompt_registry.py
@@ -147,8 +155,14 @@ entries:
       - tests/test_subagent_executor_real.py
       - tests/test_debate_executor_mock.py
       - tests/test_debate_executor_real.py
+      - tests/test_debate_executor_observability.py
+      - tests/test_debate_latency_benchmark.py
+      - tests/test_prompt_embedding_live_cron_install.py
+      - tests/test_prompt_embedding_live_gate_script.py
+      - tests/test_prompt_embedding_completion_gate.py
+      - tests/test_lint_prompt_embedding_live_gate.py
       - tests/test_api_contract.py
-    coverage_note: "Prompt assets and operator policy are loaded from versioned config with strict validation and runtime enforcement; API runtime wiring includes debate/subagent execution split."
+    coverage_note: "Prompt assets and operator policy are loaded from versioned config with strict validation and runtime enforcement; API runtime wiring includes debate/subagent execution split with live-gate observability and completion checks."
 
   - clause_id: "ops.0"
     description: "Operational entrypoints covered in traceability completeness"
@@ -168,11 +182,26 @@ entries:
       - agora/memory_store.py
       - agora/model_registry.py
       - agora/models.py
+      - agora/routes/__init__.py
+      - agora/routes/sessions.py
+      - agora/routes/workflows.py
+      - agora/routes/internal.py
+      - agora/routes/admin.py
+      - agora/controllers/__init__.py
+      - agora/controllers/schemas.py
+      - agora/controllers/session_controller.py
+      - agora/controllers/message_controller.py
+      - agora/controllers/workflow_controller.py
+      - agora/services/__init__.py
+      - agora/services/routing_service.py
+      - agora/services/execution_service.py
+      - agora/services/audit_service.py
       - agora/redteam.py
       - agora/rule_engine.py
       - agora/sandbox_gc.py
       - agora/state_projector.py
       - agora/verification_engine.py
+      - config/audit_policy.yaml
       - config/fallback_chains.yaml
       - config/model_family_map.yaml
       - scripts/run_week1_acceptance.sh
