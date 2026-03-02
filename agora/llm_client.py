@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import hashlib
+import random
+import time
 from datetime import datetime, timezone
 from time import perf_counter
 from abc import ABC, abstractmethod
@@ -31,6 +33,14 @@ class DebatePolicy(BaseModel):
     round3_payload_char_limit: int = Field(default=5000, ge=500)
 
 
+class RetryBackoffPolicy(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    base_delay_ms: int = Field(default=200, ge=0)
+    max_delay_ms: int = Field(default=2000, ge=0)
+    jitter_ratio: float = Field(default=0.2, ge=0.0, le=1.0)
+
+
 class LlmPolicy(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
 
@@ -43,6 +53,8 @@ class LlmPolicy(BaseModel):
     retry_on: list[int] = Field(default_factory=list)
     fallback_on_error: bool = False
     debate: DebatePolicy = Field(default_factory=DebatePolicy)
+    retry_backoff: RetryBackoffPolicy = Field(default_factory=RetryBackoffPolicy)
+    cost_per_call_alert_usd: float | None = Field(default=None, gt=0.0)
 
 
 class LLMClient(ABC):
@@ -80,6 +92,11 @@ class LLMClient(ABC):
             "final_status_code": None,
             "error_type": None,
             "outcome": "ok",
+            "prompt_tokens": None,
+            "completion_tokens": None,
+            "total_tokens": None,
+            "estimated_cost_usd": None,
+            "cost_alert_exceeded": False,
         }
         return payload, meta
 
@@ -135,14 +152,20 @@ class MockLLMClient(LLMClient):
             "final_status_code": None,
             "error_type": None,
             "outcome": "ok",
+            "prompt_tokens": None,
+            "completion_tokens": None,
+            "total_tokens": None,
+            "estimated_cost_usd": None,
+            "cost_alert_exceeded": False,
         }
         return payload, meta
 
 
 class OpenRouterLLMClient(LLMClient):
-    def __init__(self, policy: LlmPolicy) -> None:
+    def __init__(self, policy: LlmPolicy, *, model_pricing: dict[str, dict[str, float]] | None = None) -> None:
         self.policy = policy
         self._source = f"openrouter:{policy.model}"
+        self.model_pricing = model_pricing or {}
 
     @property
     def source(self) -> str:
@@ -231,6 +254,24 @@ class OpenRouterLLMClient(LLMClient):
                 content = resp.choices[0].message.content or "{}"
                 payload = self._extract_json_object(content)
                 payload["agent_id"] = agent_id
+                usage = getattr(resp, "usage", None)
+                prompt_tokens = _coerce_usage_token(getattr(usage, "prompt_tokens", None))
+                completion_tokens = _coerce_usage_token(getattr(usage, "completion_tokens", None))
+                total_tokens = _coerce_usage_token(getattr(usage, "total_tokens", None))
+                if total_tokens is None and prompt_tokens is not None and completion_tokens is not None:
+                    total_tokens = prompt_tokens + completion_tokens
+                estimated_cost_usd = _estimate_cost_usd(
+                    model=self.policy.model,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    pricing=self.model_pricing,
+                )
+                alert_threshold = self.policy.cost_per_call_alert_usd
+                cost_alert_exceeded = (
+                    isinstance(alert_threshold, (int, float))
+                    and estimated_cost_usd is not None
+                    and float(estimated_cost_usd) > float(alert_threshold)
+                )
                 meta = {
                     "provider": "openrouter",
                     "model": self.policy.model,
@@ -244,6 +285,11 @@ class OpenRouterLLMClient(LLMClient):
                     "final_status_code": final_status_code,
                     "error_type": None,
                     "outcome": "ok",
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens,
+                    "estimated_cost_usd": estimated_cost_usd,
+                    "cost_alert_exceeded": cost_alert_exceeded,
                 }
                 return payload, meta
             except Exception as exc:  # noqa: BLE001
@@ -253,7 +299,9 @@ class OpenRouterLLMClient(LLMClient):
                     raise LlmAuthError(f"openrouter_auth_failed:{status_code}") from exc
                 retryable = status_code in set(self.policy.retry_on)
                 if i < attempts - 1 and retryable:
+                    delay_s = _retry_delay_seconds(self.policy, retry_count)
                     retry_count += 1
+                    time.sleep(delay_s)
                     continue
                 raise
 
@@ -271,6 +319,30 @@ def load_llm_policy(path: str | Path) -> LlmPolicy:
         return LlmPolicy(**raw)
     except ValidationError as exc:
         raise LlmPolicyError(f"invalid llm policy: {p}: {exc}") from exc
+
+
+def load_model_pricing(path: str | Path) -> dict[str, dict[str, float]]:
+    p = Path(path)
+    if not p.exists():
+        return {}
+    raw = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw, dict):
+        return {}
+    models = raw.get("models", {})
+    if not isinstance(models, dict):
+        return {}
+    out: dict[str, dict[str, float]] = {}
+    for model, row in models.items():
+        if not isinstance(model, str) or not isinstance(row, dict):
+            continue
+        prompt_rate = row.get("per_million_prompt_usd")
+        completion_rate = row.get("per_million_completion_usd")
+        if isinstance(prompt_rate, (int, float)) and isinstance(completion_rate, (int, float)):
+            out[model] = {
+                "per_million_prompt_usd": float(prompt_rate),
+                "per_million_completion_usd": float(completion_rate),
+            }
+    return out
 
 
 def load_openrouter_api_key() -> str:
@@ -314,5 +386,45 @@ def build_llm_client(policy: LlmPolicy, *, root_dir: str | Path, repo_root: str 
     if policy.mode == "mock":
         return MockLLMClient(_resolve_mock_fixture_dir(root, repo))
     if policy.mode == "openrouter":
-        return OpenRouterLLMClient(policy)
+        pricing = load_model_pricing(root / "config" / "model_pricing.yaml")
+        if not pricing:
+            pricing = load_model_pricing(repo / "config" / "model_pricing.yaml")
+        return OpenRouterLLMClient(policy, model_pricing=pricing)
     raise LlmPolicyError(f"unsupported llm mode: {policy.mode}")
+
+
+def _coerce_usage_token(value: object) -> int | None:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    return None
+
+
+def _estimate_cost_usd(
+    *,
+    model: str,
+    prompt_tokens: int | None,
+    completion_tokens: int | None,
+    pricing: dict[str, dict[str, float]],
+) -> float | None:
+    if prompt_tokens is None or completion_tokens is None:
+        return None
+    rates = pricing.get(model)
+    if not rates:
+        return None
+    p_rate = rates.get("per_million_prompt_usd")
+    c_rate = rates.get("per_million_completion_usd")
+    if not isinstance(p_rate, (int, float)) or not isinstance(c_rate, (int, float)):
+        return None
+    cost = (prompt_tokens / 1_000_000.0) * float(p_rate) + (completion_tokens / 1_000_000.0) * float(c_rate)
+    return round(cost, 8)
+
+
+def _retry_delay_seconds(policy: LlmPolicy, retry_index: int) -> float:
+    base = int(policy.retry_backoff.base_delay_ms)
+    max_delay = int(policy.retry_backoff.max_delay_ms)
+    jitter = float(policy.retry_backoff.jitter_ratio)
+    delay_ms = min(max_delay, base * (2 ** max(0, retry_index)))
+    jitter_ms = random.uniform(0.0, delay_ms * jitter) if delay_ms > 0 else 0.0
+    return (delay_ms + jitter_ms) / 1000.0

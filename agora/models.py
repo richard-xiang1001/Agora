@@ -112,6 +112,35 @@ class AuditEvent(BaseModel):
     trace_id: str
 
 
+class HealthSnapshot(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    audit_state: Literal["normal", "degraded", "readonly"]
+    degraded_since: str | None
+    degraded_seconds: int = Field(ge=0)
+    normal_since: str | None
+    normal_seconds: int = Field(ge=0)
+    degraded_request_count: int = Field(ge=0)
+    pending_wal_events: int = Field(ge=0)
+    wal_size_bytes: int = Field(ge=0)
+    recovery_cooldown_seconds: int = Field(ge=0)
+    budget_exceeded: bool
+    last_updated: str | None = None
+    last_refresh_cause: str | None = None
+
+
+class AuditAppendResponse(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    accepted: bool
+    duplicate: bool
+    seq_no: int | None
+    wrote_to_wal: bool
+    durability_mode: Literal["audit", "wal"]
+    audit_state: Literal["normal", "degraded", "readonly"]
+    health_snapshot: HealthSnapshot
+
+
 class ApprovalState(str, Enum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -137,3 +166,19 @@ class ToolAuthorizationResult(BaseModel):
     allowed: bool
     reason: str
     approval_state: ApprovalState | None = None
+
+
+class SessionBudget(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    max_cost_usd: float | None = Field(default=None, ge=0.0)
+    max_tokens: int | None = Field(default=None, ge=0)
+    consumed_cost_usd: float = Field(default=0.0, ge=0.0)
+    consumed_tokens: int = Field(default=0, ge=0)
+
+
+class SessionQuota(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    max_messages_per_minute: int = Field(default=0, ge=0)
+    window_seconds: int = Field(default=60, ge=1)

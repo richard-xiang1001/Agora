@@ -1,0 +1,5 @@
+schema_version: "1.0"
+operator_allow: []
+session_quota:
+  max_messages_per_minute: 20
+  window_seconds: 60

@@ -8,6 +8,11 @@ timeout_seconds: 30
 max_retries: 2
 retry_on: [500, 502, 503]
 fallback_on_error: false
+cost_per_call_alert_usd: 0.10
+retry_backoff:
+  base_delay_ms: 200
+  max_delay_ms: 2000
+  jitter_ratio: 0.2
 debate:
   max_parallel_roles: 3
   round_timeout_seconds: null

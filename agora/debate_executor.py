@@ -32,6 +32,12 @@ class DebateRoundTimeoutError(DebateExecutorError):
     pass
 
 
+class DebateCancelledError(DebateExecutorError):
+    def __init__(self, message: str, *, cancelled_at_round: int | None = None) -> None:
+        super().__init__(message)
+        self.cancelled_at_round = cancelled_at_round
+
+
 VERDICT_RE = re.compile(r"VERDICT:\s*(APPROVE|REQUEST_CHANGES|SUSPEND)", re.IGNORECASE)
 _T = TypeVar("_T")
 
@@ -176,6 +182,10 @@ class DebateExecutor:
             "final_status_code": status_code if isinstance(status_code, int) else None,
             "error_type": exc.__class__.__name__,
             "outcome": "timeout" if timeout_like else "retry_exhausted",
+            "prompt_tokens": None,
+            "completion_tokens": None,
+            "total_tokens": None,
+            "estimated_cost_usd": None,
         }
 
     @staticmethod
@@ -216,6 +226,10 @@ class DebateExecutor:
                 "final_status_code": None,
                 "error_type": None,
                 "outcome": "ok",
+                "prompt_tokens": None,
+                "completion_tokens": None,
+                "total_tokens": None,
+                "estimated_cost_usd": None,
             }
 
         system_prompt = self._build_role_system_prompt(binding, role_id)
@@ -310,6 +324,10 @@ class DebateExecutor:
                 "final_status_code": None,
                 "error_type": None,
                 "outcome": "ok",
+                "prompt_tokens": None,
+                "completion_tokens": None,
+                "total_tokens": None,
+                "estimated_cost_usd": None,
             }
 
         system_prompt = self._build_role_system_prompt(binding, role_id)
@@ -448,6 +466,10 @@ class DebateExecutor:
                 "final_status_code": None,
                 "error_type": None,
                 "outcome": "ok",
+                "prompt_tokens": None,
+                "completion_tokens": None,
+                "total_tokens": None,
+                "estimated_cost_usd": None,
             }
 
         system_prompt = self._build_orchestrator_system_prompt(binding)
@@ -492,6 +514,11 @@ class DebateExecutor:
             if code is not None:
                 status_hist[str(code)] += 1
         failed = [r for r in call_rows if r.get("outcome") != "ok"]
+        prompt_vals = [int(r["prompt_tokens"]) for r in call_rows if isinstance(r.get("prompt_tokens"), int)]
+        completion_vals = [int(r["completion_tokens"]) for r in call_rows if isinstance(r.get("completion_tokens"), int)]
+        total_vals = [int(r["total_tokens"]) for r in call_rows if isinstance(r.get("total_tokens"), int)]
+        cost_vals = [float(r["estimated_cost_usd"]) for r in call_rows if isinstance(r.get("estimated_cost_usd"), (int, float))]
+        cost_alert_total = int(sum(1 for r in call_rows if bool(r.get("cost_alert_exceeded"))))
         metrics = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "total_calls": len(call_rows),
@@ -505,6 +532,11 @@ class DebateExecutor:
             "timeout_total": int(sum(1 for r in call_rows if r.get("outcome") == "timeout")),
             "status_code_histogram": dict(status_hist),
             "decision": decision,
+            "prompt_tokens": int(sum(prompt_vals)) if prompt_vals else None,
+            "completion_tokens": int(sum(completion_vals)) if completion_vals else None,
+            "total_tokens": int(sum(total_vals)) if total_vals else None,
+            "estimated_cost_usd": round(sum(cost_vals), 8) if cost_vals else None,
+            "cost_alert_exceeded_calls": cost_alert_total,
         }
         (session / "debate").mkdir(parents=True, exist_ok=True)
         (session / "debate" / "debate_metrics.json").write_text(
@@ -531,6 +563,8 @@ class DebateExecutor:
         session_dir: str | Path | None = None,
         use_mock: bool = False,
         progress_cb: Callable[[str, str, float | None], None] | None = None,
+        cancel_check: Callable[[], bool] | None = None,
+        cancel_after_round: int | None = None,
     ) -> DebateVerdict:
         if not binding:
             raise DebateExecutorError("binding assets are required")
@@ -541,11 +575,23 @@ class DebateExecutor:
             if progress_cb is not None:
                 progress_cb(round_name, phase, elapsed)
 
+        def _raise_if_cancelled() -> None:
+            if cancel_check is not None and bool(cancel_check()):
+                raise DebateCancelledError("workflow_cancelled")
+
+        def _raise_if_cancel_after_round_done(round_no: int) -> None:
+            if cancel_after_round in {1, 2} and round_no >= int(cancel_after_round):
+                raise DebateCancelledError(
+                    f"workflow_cancelled_after_round_{round_no}",
+                    cancelled_at_round=round_no,
+                )
+
         async def _compute_round1() -> tuple[dict[str, str], list[dict[str, Any]]]:
             sem = asyncio.Semaphore(self._max_parallel_roles())
 
             async def _one(role_id: str) -> tuple[str, str, dict[str, Any]]:
                 async with sem:
+                    _raise_if_cancelled()
                     text, meta = await asyncio.to_thread(
                         self._run_round1_role,
                         role_id=role_id,
@@ -570,6 +616,7 @@ class DebateExecutor:
 
             async def _one(role_id: str) -> tuple[str, str, dict[str, Any]]:
                 async with sem:
+                    _raise_if_cancelled()
                     text, meta = await asyncio.to_thread(
                         self._run_round2_role,
                         role_id=role_id,
@@ -606,31 +653,52 @@ class DebateExecutor:
 
         t_total = perf_counter()
         llm_call_rows: list[dict[str, Any]] = []
+        round1_ms = 0
+        round2_ms = 0
+        round3_ms = 0
+        try:
+            _raise_if_cancelled()
+            _notify("round1", "start", None)
+            t0 = perf_counter()
+            round1_outputs, round1_call_rows = asyncio.run(self._run_with_timeout(_compute_round1(), "round1"))
+            round1_ms = int((perf_counter() - t0) * 1000)
+            llm_call_rows.extend(round1_call_rows)
+            _notify("round1", "done", round1_ms / 1000.0)
+            _raise_if_cancel_after_round_done(1)
 
-        _notify("round1", "start", None)
-        t0 = perf_counter()
-        round1_outputs, round1_call_rows = asyncio.run(self._run_with_timeout(_compute_round1(), "round1"))
-        round1_ms = int((perf_counter() - t0) * 1000)
-        llm_call_rows.extend(round1_call_rows)
-        _notify("round1", "done", round1_ms / 1000.0)
+            _raise_if_cancelled()
+            _notify("round2", "start", None)
+            t0 = perf_counter()
+            round2_outputs, round2_call_rows = asyncio.run(self._run_with_timeout(_compute_round2(round1_outputs), "round2"))
+            round2_ms = int((perf_counter() - t0) * 1000)
+            llm_call_rows.extend(round2_call_rows)
+            _notify("round2", "done", round2_ms / 1000.0)
+            _raise_if_cancel_after_round_done(2)
 
-        _notify("round2", "start", None)
-        t0 = perf_counter()
-        round2_outputs, round2_call_rows = asyncio.run(self._run_with_timeout(_compute_round2(round1_outputs), "round2"))
-        round2_ms = int((perf_counter() - t0) * 1000)
-        llm_call_rows.extend(round2_call_rows)
-        _notify("round2", "done", round2_ms / 1000.0)
-
-        _notify("round3", "start", None)
-        t0 = perf_counter()
-        mode = self._determine_mode(round1_outputs)
-        round3_raw, round3_meta = asyncio.run(
-            self._run_with_timeout(_compute_round3(round1_outputs, round2_outputs), "round3")
-        )
-        round3_summary = self._extract_summary(round3_raw, session)
-        round3_ms = int((perf_counter() - t0) * 1000)
-        llm_call_rows.append(round3_meta)
-        _notify("round3", "done", round3_ms / 1000.0)
+            _raise_if_cancelled()
+            _notify("round3", "start", None)
+            t0 = perf_counter()
+            mode = self._determine_mode(round1_outputs)
+            round3_raw, round3_meta = asyncio.run(
+                self._run_with_timeout(_compute_round3(round1_outputs, round2_outputs), "round3")
+            )
+            round3_summary = self._extract_summary(round3_raw, session)
+            round3_ms = int((perf_counter() - t0) * 1000)
+            llm_call_rows.append(round3_meta)
+            _notify("round3", "done", round3_ms / 1000.0)
+        except DebateCancelledError:
+            for row in llm_call_rows:
+                self._append_jsonl(session / "debate" / "llm_calls.jsonl", row)
+            self._write_debate_metrics(
+                session=session,
+                call_rows=llm_call_rows,
+                round1_ms=round1_ms,
+                round2_ms=round2_ms,
+                round3_ms=round3_ms,
+                total_ms=int((perf_counter() - t_total) * 1000),
+                decision="CANCELLED",
+            )
+            raise
 
         minority_view = None
         if mode == "majority_with_minority":

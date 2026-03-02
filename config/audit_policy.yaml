@@ -1,0 +1,8 @@
+scrub:
+  enabled: true
+  max_chars_per_field:
+    diff: 500
+    error_message: 300
+    stderr_tail: 400
+  scrub_marker: "[scrubbed:{original_len}]"
+  scrubbed_event_field: "scrubbed_fields"
