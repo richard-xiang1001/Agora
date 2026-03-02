@@ -29,7 +29,12 @@ from agora.sandbox_gc import SandboxGC
 from agora.state_projector import StateProjector
 from agora.tool_worker import ToolWorker
 from agora.operator_policy import load_operator_allow_bits
-from agora.llm_client import build_llm_client, load_llm_policy
+from agora.llm_client import (
+    LlmAuthError,
+    build_llm_client,
+    load_llm_policy,
+    validate_openrouter_auth,
+)
 from agora.prompt_binding import is_domain_effective, resolve_prompt_profile
 from agora.prompt_registry import compose_binding_hash, load_catalog
 from agora.debate_executor import DebateExecutor
@@ -246,6 +251,7 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
     app.state.degradation_policy = yaml.safe_load(
         degradation_policy_path.read_text(encoding="utf-8")
     )
+    app.state.audit_daemon = _build_daemon(root, app.state.degradation_policy)
     app.state.rule_engine = RuleEngine.from_yaml(rules_path)
     app.state.prompt_registry = load_catalog(
         prompt_catalog_path,
@@ -264,13 +270,40 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
         root_dir=root,
         repo_root=repo_root,
     )
+    try:
+        app.state.llm_auth_meta = validate_openrouter_auth(app.state.llm_policy)
+        _append_audit_event(
+            daemon=app.state.audit_daemon,
+            component_id="orchestrator",
+            key_id=os.getenv("AUDIT_ACTIVE_KEY_ID", "key_v1"),
+            secret=os.getenv("AUDIT_KEY_ORCHESTRATOR", "dev-secret-orchestrator"),
+            event_type="llm_auth_ready",
+            payload=app.state.llm_auth_meta,
+            trace_id=f"trace-llm-auth-ready-{uuid.uuid4().hex[:8]}",
+        )
+    except Exception as exc:
+        try:
+            _append_audit_event(
+                daemon=app.state.audit_daemon,
+                component_id="orchestrator",
+                key_id=os.getenv("AUDIT_ACTIVE_KEY_ID", "key_v1"),
+                secret=os.getenv("AUDIT_KEY_ORCHESTRATOR", "dev-secret-orchestrator"),
+                event_type="llm_auth_failed",
+                payload={
+                    "error_type": exc.__class__.__name__,
+                    "error": str(exc),
+                },
+                trace_id=f"trace-llm-auth-failed-{uuid.uuid4().hex[:8]}",
+            )
+        except Exception:
+            pass
+        raise
     app.state.subagent_executor = SubagentExecutor(prompt_root_dir=repo_root)
     app.state.debate_executor = DebateExecutor(
         prompt_root_dir=repo_root,
         llm_policy=app.state.llm_policy,
     )
     app.state.base_dir = root
-    app.state.audit_daemon = _build_daemon(root, app.state.degradation_policy)
     app.state.execution_controller = ExecutionController(scopes_path, runtime_caps_path)
     app.state.tool_worker = ToolWorker(
         execution_controller=app.state.execution_controller,
@@ -413,6 +446,7 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
         prompt_binding_hash = compose_binding_hash(prompt_assets)
         verdict_payload: dict[str, Any] | None = None
         debate_verdict_payload: dict[str, Any] | None = None
+        debate_metrics_payload: dict[str, Any] | None = None
         execution_mode: str | None = None
         if decision.workflow_type == "code_review_workflow":
             if decision.debate_triggered:
@@ -426,7 +460,31 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
                         use_mock=(app.state.llm_policy.mode == "mock"),
                     )
                     debate_verdict_payload = asdict(debate_verdict)
+                    metrics_path = Path(debate_verdict.session_dir) / "debate" / "debate_metrics.json"
+                    if metrics_path.exists():
+                        try:
+                            debate_metrics_payload = json.loads(metrics_path.read_text(encoding="utf-8"))
+                        except Exception:
+                            debate_metrics_payload = None
                     execution_mode = "debate"
+                except LlmAuthError as exc:
+                    try:
+                        _append_audit_event(
+                            daemon=app.state.audit_daemon,
+                            component_id="orchestrator",
+                            key_id=os.getenv("AUDIT_ACTIVE_KEY_ID", "key_v1"),
+                            secret=os.getenv("AUDIT_KEY_ORCHESTRATOR", "dev-secret-orchestrator"),
+                            event_type="debate_execution_auth_failed",
+                            payload={
+                                "session_id": session_id,
+                                "error_type": exc.__class__.__name__,
+                                "error": str(exc),
+                            },
+                            trace_id=trace_id,
+                        )
+                    except Exception:
+                        pass
+                    raise HTTPException(status_code=503, detail="debate_execution_auth_failed") from exc
                 except Exception as exc:
                     try:
                         _append_audit_event(
@@ -501,6 +559,8 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
             workflow_payload["verdict"] = verdict_payload
         if debate_verdict_payload is not None:
             workflow_payload["debate_verdict"] = debate_verdict_payload
+        if debate_metrics_payload is not None:
+            workflow_payload["debate_metrics"] = debate_metrics_payload
         _write_json(wf_dir / "workflow.json", workflow_payload)
 
         state_path = session_dir / "state.json"

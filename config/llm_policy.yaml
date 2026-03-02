@@ -1,0 +1,16 @@
+# LLM call policy
+# Changes to this file require code review.
+schema_version: "1.0"
+provider: openrouter
+mode: openrouter
+model: "upstage/solar-pro-3:free"
+timeout_seconds: 30
+max_retries: 2
+retry_on: [500, 502, 503]
+fallback_on_error: false
+debate:
+  max_parallel_roles: 3
+  round_timeout_seconds: null
+  round2_claim_char_limit: 400
+  round2_payload_char_limit: 3500
+  round3_payload_char_limit: 5000

@@ -99,6 +99,25 @@ def main() -> int:
         print(f"[FAIL] debate execution error: {exc}", file=sys.stderr)
         return 1
 
+    metrics_path = Path(verdict.session_dir) / "debate" / "debate_metrics.json"
+    if metrics_path.exists():
+        try:
+            metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+            print(
+                json.dumps(
+                    {
+                        "metrics_total_ms": metrics.get("total_ms"),
+                        "metrics_retry_total": metrics.get("retry_total"),
+                        "metrics_timeout_total": metrics.get("timeout_total"),
+                        "metrics_failed_calls": metrics.get("failed_calls"),
+                    },
+                    ensure_ascii=True,
+                ),
+                file=sys.stderr,
+            )
+        except Exception:
+            pass
+
     print(f"[done] decision={verdict.decision}", flush=True)
     print(json.dumps(asdict(verdict), ensure_ascii=True, indent=2))
     return 0
