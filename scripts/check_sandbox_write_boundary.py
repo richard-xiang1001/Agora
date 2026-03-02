@@ -49,12 +49,16 @@ def check_boundary(
     executed = {str(x) for x in summary.get("executed_workflow_ids", []) if str(x)}
     registered = {str(x) for x in registry.get("workflow_ids", []) if str(x)}
     target_ids = executed & registered
+    modified_files = _scan_modified_since(sandbox_root, t0)
     if not target_ids:
-        return True, []
+        # E-01 scheme B: even when workflow ids do not intersect, any write under
+        # sandbox root after t0 is suspicious and must fail closed.
+        violations = [str(p.resolve()) for p in modified_files]
+        return len(violations) == 0, violations
 
     allowed_prefixes = [str((sandbox_root / wf).resolve()) + os.sep for wf in sorted(target_ids)]
     violations: list[str] = []
-    for p in _scan_modified_since(sandbox_root, t0):
+    for p in modified_files:
         resolved = str(p.resolve())
         if not any(resolved.startswith(prefix) for prefix in allowed_prefixes):
             violations.append(resolved)

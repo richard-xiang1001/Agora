@@ -117,6 +117,29 @@ entries:
       - tests/test_lint_traceability_whitelist.py
     coverage_note: "Governance policy files are schema/lint guarded and completeness checked against key paths."
 
+  - clause_id: "14.1"
+    description: "Prompt catalog/registry/binding/operator policy enforce fail-closed prompt authorization"
+    behavioral: true
+    status: met
+    constitution_version: "v0.1"
+    test_threshold_version: "v0.1"
+    modules:
+      - agora/operator_policy.py
+      - agora/prompt_types.py
+      - agora/prompt_registry.py
+      - agora/prompt_binding.py
+      - agora/prompt_adapters.py
+      - config/prompt_catalog.yaml
+      - config/operator_policy.yaml
+    tests:
+      - tests/test_operator_policy_loading.py
+      - tests/test_prompt_registry.py
+      - tests/test_prompt_binding.py
+      - tests/test_prompt_adapter_json_claim_v1.py
+      - tests/test_prompt_catalog_consistency.py
+      - tests/test_prompt_authorization_runtime_enforcement.py
+    coverage_note: "Prompt assets and operator policy are loaded from versioned config with strict validation and runtime enforcement."
+
   - clause_id: "ops.0"
     description: "Operational entrypoints covered in traceability completeness"
     behavioral: false
