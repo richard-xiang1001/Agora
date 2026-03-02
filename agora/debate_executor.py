@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from time import perf_counter
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal, TypeVar
 
 from agora.debate_engine import DebateEngine, Round3Mode
 from agora.llm_client import LLMClient, LlmPolicy
@@ -23,6 +25,14 @@ ROUND1_ROLE_IDS = [
 
 class DebateExecutorError(RuntimeError):
     pass
+
+
+class DebateRoundTimeoutError(DebateExecutorError):
+    pass
+
+
+VERDICT_RE = re.compile(r"VERDICT:\s*(APPROVE|REQUEST_CHANGES|SUSPEND)", re.IGNORECASE)
+_T = TypeVar("_T")
 
 
 @dataclass(frozen=True)
@@ -63,11 +73,36 @@ class DebateExecutor:
     def _build_orchestrator_system_prompt(self, binding: list[PromptAsset]) -> str:
         return self._require_prompt(binding, "orchestrator.debate").strip()
 
+    @staticmethod
+    def _emit_warning_event(session_dir: Path, event_type: str, payload: dict[str, Any]) -> None:
+        debate_dir = session_dir / "debate"
+        debate_dir.mkdir(parents=True, exist_ok=True)
+        event = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": "WARNING",
+            "event_type": event_type,
+            "payload": payload,
+        }
+        with (debate_dir / "debate_events.jsonl").open("a", encoding="utf-8") as f:
+            f.write(json.dumps(event, ensure_ascii=True) + "\n")
+
     def _load_fixture(self, name: str) -> str:
         path = self.fixture_root_dir / name
         if not path.exists():
             raise DebateExecutorError(f"missing debate mock fixture: {path}")
         return path.read_text(encoding="utf-8").strip()
+
+    @staticmethod
+    def _extract_round1_verdict(text: str) -> Literal["APPROVE", "REQUEST_CHANGES", "SUSPEND"]:
+        match = VERDICT_RE.search(str(text))
+        if not match:
+            return "REQUEST_CHANGES"
+        value = match.group(1).upper()
+        if value == "SUSPEND":
+            return "SUSPEND"
+        if value == "APPROVE":
+            return "APPROVE"
+        return "REQUEST_CHANGES"
 
     @staticmethod
     def _claim_to_verdict_keyword(claim: dict[str, Any]) -> str:
@@ -112,7 +147,7 @@ class DebateExecutor:
             raise DebateExecutorError("round1 llm payload is not object")
         verdict = self._claim_to_verdict_keyword(claim)
         conclusion = str(claim.get("conclusion", "No conclusion provided.")).strip()
-        return f"VERDICT: {verdict}\n{conclusion}"
+        return f"{conclusion}\nVERDICT: {verdict}"
 
     def _build_round2_user_input(
         self,
@@ -178,17 +213,12 @@ class DebateExecutor:
 
     @staticmethod
     def _determine_mode(round1_outputs: dict[str, str]) -> Round3Mode:
-        texts = [t.upper() for t in round1_outputs.values()]
-        if any("SUSPEND" in t for t in texts):
+        verdicts = [DebateExecutor._extract_round1_verdict(t) for t in round1_outputs.values()]
+        if any(v == "SUSPEND" for v in verdicts):
             return "suspend"
 
-        approve = 0
-        req = 0
-        for t in texts:
-            if "REQUEST_CHANGES" in t:
-                req += 1
-            elif "APPROVE" in t:
-                approve += 1
+        approve = sum(1 for v in verdicts if v == "APPROVE")
+        req = sum(1 for v in verdicts if v == "REQUEST_CHANGES")
 
         if req >= approve:
             return "majority_with_minority"
@@ -201,6 +231,39 @@ class DebateExecutor:
             return "Debate completed."
         m = re.split(r"(?<=[.!?])\s+", t, maxsplit=1)
         return m[0].strip() if m and m[0].strip() else "Debate completed."
+
+    @staticmethod
+    def _round_timeout_seconds(llm_policy: LlmPolicy | None) -> int:
+        if llm_policy is None:
+            return 60
+        return max(1, int(llm_policy.timeout_seconds) * 2)
+
+    async def _run_with_timeout(self, coro: Any, round_name: str) -> _T:
+        timeout = self._round_timeout_seconds(self.llm_policy)
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout)
+        except TimeoutError as exc:
+            raise DebateRoundTimeoutError(f"{round_name} timeout after {timeout}s") from exc
+
+    def _extract_summary(self, raw_round3_text: str, session_dir: Path) -> str:
+        lines = [ln.strip() for ln in str(raw_round3_text).splitlines()]
+        body = [ln for ln in lines if ln and not ln.startswith("#")]
+        if body:
+            return body[0]
+
+        fallback = str(raw_round3_text).strip()[:500]
+        if not fallback:
+            fallback = "Debate summary fallback: empty upstream output."
+        self._emit_warning_event(
+            session_dir,
+            "debate_summary_extraction_failed",
+            {
+                "reason": "no_non_heading_summary",
+                "raw_len": len(str(raw_round3_text)),
+                "fallback_len": len(fallback),
+            },
+        )
+        return fallback
 
     def _run_round3_orchestrator(
         self,
@@ -240,7 +303,7 @@ class DebateExecutor:
         )
         if not isinstance(claim, dict):
             raise DebateExecutorError("round3 llm payload is not object")
-        return str(claim.get("conclusion", "Debate summary unavailable.")).strip()
+        return str(claim.get("conclusion", "")).strip()
 
     def _resolve_session_dir(self, session_dir: str | Path | None) -> Path:
         if session_dir is not None:
@@ -260,45 +323,74 @@ class DebateExecutor:
         llm_client: LLMClient,
         session_dir: str | Path | None = None,
         use_mock: bool = False,
+        progress_cb: Callable[[str, str, float | None], None] | None = None,
     ) -> DebateVerdict:
         if not binding:
             raise DebateExecutorError("binding assets are required")
 
         session = self._resolve_session_dir(session_dir)
 
-        round1_outputs: dict[str, str] = {}
-        for role_id in ROUND1_ROLE_IDS:
-            round1_outputs[role_id] = self._run_round1_role(
-                role_id=role_id,
-                diff=diff,
-                routing_features=routing_features,
-                binding=binding,
-                llm_client=llm_client,
-                use_mock=use_mock,
-            )
+        def _notify(round_name: str, phase: str, elapsed: float | None = None) -> None:
+            if progress_cb is not None:
+                progress_cb(round_name, phase, elapsed)
 
-        round2_outputs: dict[str, str] = {}
-        for role_id in ROUND1_ROLE_IDS:
-            round2_outputs[role_id] = self._run_round2_role(
-                role_id=role_id,
+        async def _compute_round1() -> dict[str, str]:
+            out: dict[str, str] = {}
+            for role_id in ROUND1_ROLE_IDS:
+                out[role_id] = await asyncio.to_thread(
+                    self._run_round1_role,
+                    role_id=role_id,
+                    diff=diff,
+                    routing_features=routing_features,
+                    binding=binding,
+                    llm_client=llm_client,
+                    use_mock=use_mock,
+                )
+            return out
+
+        async def _compute_round2(round1_outputs: dict[str, str]) -> dict[str, str]:
+            out: dict[str, str] = {}
+            for role_id in ROUND1_ROLE_IDS:
+                out[role_id] = await asyncio.to_thread(
+                    self._run_round2_role,
+                    role_id=role_id,
+                    diff=diff,
+                    routing_features=routing_features,
+                    round1_outputs=round1_outputs,
+                    binding=binding,
+                    llm_client=llm_client,
+                    use_mock=use_mock,
+                )
+            return out
+
+        async def _compute_round3(round1_outputs: dict[str, str], round2_outputs: dict[str, str]) -> str:
+            return await asyncio.to_thread(
+                self._run_round3_orchestrator,
                 diff=diff,
                 routing_features=routing_features,
                 round1_outputs=round1_outputs,
+                round2_outputs=round2_outputs,
                 binding=binding,
                 llm_client=llm_client,
                 use_mock=use_mock,
             )
 
+        _notify("round1", "start", None)
+        t0 = perf_counter()
+        round1_outputs = asyncio.run(self._run_with_timeout(_compute_round1(), "round1"))
+        _notify("round1", "done", perf_counter() - t0)
+
+        _notify("round2", "start", None)
+        t0 = perf_counter()
+        round2_outputs = asyncio.run(self._run_with_timeout(_compute_round2(round1_outputs), "round2"))
+        _notify("round2", "done", perf_counter() - t0)
+
+        _notify("round3", "start", None)
+        t0 = perf_counter()
         mode = self._determine_mode(round1_outputs)
-        round3_summary = self._run_round3_orchestrator(
-            diff=diff,
-            routing_features=routing_features,
-            round1_outputs=round1_outputs,
-            round2_outputs=round2_outputs,
-            binding=binding,
-            llm_client=llm_client,
-            use_mock=use_mock,
-        )
+        round3_raw = asyncio.run(self._run_with_timeout(_compute_round3(round1_outputs, round2_outputs), "round3"))
+        round3_summary = self._extract_summary(round3_raw, session)
+        _notify("round3", "done", perf_counter() - t0)
 
         minority_view = None
         if mode == "majority_with_minority":
