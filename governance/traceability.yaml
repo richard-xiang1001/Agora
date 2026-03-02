@@ -125,12 +125,17 @@ entries:
     test_threshold_version: "v0.1"
     modules:
       - agora/operator_policy.py
+      - agora/llm_client.py
       - agora/prompt_types.py
       - agora/prompt_registry.py
       - agora/prompt_binding.py
       - agora/prompt_adapters.py
+      - agora/subagent_executor.py
+      - agora/debate_executor.py
       - config/prompt_catalog.yaml
       - config/operator_policy.yaml
+      - config/llm_policy.yaml
+      - scripts/run_debate.py
     tests:
       - tests/test_operator_policy_loading.py
       - tests/test_prompt_registry.py
@@ -138,6 +143,10 @@ entries:
       - tests/test_prompt_adapter_json_claim_v1.py
       - tests/test_prompt_catalog_consistency.py
       - tests/test_prompt_authorization_runtime_enforcement.py
+      - tests/test_subagent_executor_mock.py
+      - tests/test_subagent_executor_real.py
+      - tests/test_debate_executor_mock.py
+      - tests/test_debate_executor_real.py
     coverage_note: "Prompt assets and operator policy are loaded from versioned config with strict validation and runtime enforcement."
 
   - clause_id: "ops.0"
