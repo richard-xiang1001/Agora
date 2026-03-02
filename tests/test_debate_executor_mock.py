@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agora.debate_executor import DebateExecutor, ROUND1_ROLE_IDS
+from agora.debate_executor import DebateExecutor, ROUND1_ROLE_IDS, VERDICT_RE
 from agora.llm_client import MockLLMClient
 from agora.prompt_registry import load_catalog
 
@@ -43,6 +43,11 @@ class DebateExecutorMockTests(unittest.TestCase):
             self.assertTrue(Path(verdict.round1_path).exists())
             self.assertTrue(Path(verdict.round2_path).exists())
             self.assertTrue(Path(verdict.round3_path).exists())
+            for role_id in ROUND1_ROLE_IDS:
+                claim_text = (Path(verdict.session_dir) / "claims" / f"{role_id}.md").read_text(encoding="utf-8")
+                self.assertIsNotNone(VERDICT_RE.search(claim_text))
+            round3 = Path(verdict.round3_path).read_text(encoding="utf-8")
+            self.assertNotIn("unavailable", round3.lower())
             if verdict.decision == "SUSPEND":
                 self.assertIsNone(verdict.recommendation)
             else:

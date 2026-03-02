@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
-from agora.debate_executor import DebateExecutor
-from agora.llm_client import build_llm_client, load_llm_policy
+from agora.debate_executor import DebateExecutor, DebateRoundTimeoutError
+from agora.llm_client import LlmAuthError, build_llm_client, load_llm_policy
 from agora.prompt_registry import load_catalog
 
 
@@ -31,9 +32,28 @@ class DebateExecutorRealTests(unittest.TestCase):
                 llm_client=llm_client,
                 use_mock=False,
             )
+        except LlmAuthError as exc:
+            self.fail(f"auth failure should not be skipped: {exc}")
+        except DebateRoundTimeoutError as exc:
+            self.skipTest(f"debate round timeout: {exc}")
         except Exception as exc:  # noqa: BLE001
-            self.skipTest(f"openrouter transient failure: {exc.__class__.__name__}: {exc}")
+            status_code = getattr(exc, "status_code", None)
+            if status_code in {401, 403}:
+                self.fail(f"auth status should fail test: {exc.__class__.__name__}: {exc}")
+            if status_code in {429, 500, 502, 503, 504}:
+                self.skipTest(f"openrouter transient failure: {exc.__class__.__name__}: {exc}")
+            if isinstance(exc, (TimeoutError, OSError, ConnectionError)):
+                self.skipTest(f"network transient failure: {exc.__class__.__name__}: {exc}")
+            raise
         self.assertIn(verdict.decision, {"APPROVE", "REQUEST_CHANGES", "SUSPEND"})
+        round3_path = Path(verdict.round3_path)
+        self.assertTrue(round3_path.exists())
+        round3_content = round3_path.read_text(encoding="utf-8")
+        self.assertGreater(len(round3_content.strip()), 50)
+        self.assertNotIn("unavailable", round3_content.lower())
+        if verdict.decision != "SUSPEND":
+            self.assertTrue(bool((verdict.recommendation or "").strip()))
+            self.assertGreater(len((verdict.recommendation or "").strip()), 20)
 
 
 if __name__ == "__main__":
