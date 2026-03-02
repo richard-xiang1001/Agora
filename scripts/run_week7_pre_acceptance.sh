@@ -29,18 +29,23 @@ record_result() {
   local test_name="$1"
   local status="$2"
   local notes="${3:-}"
-  TEST_NAME="${test_name}" TEST_STATUS="${status}" TEST_NOTES="${notes}" RESULTS_FILE="${RESULTS_FILE}" python3 - <<'PY'
+  local workflow_ids_json="${4:-[]}"
+  TEST_NAME="${test_name}" TEST_STATUS="${status}" TEST_NOTES="${notes}" TEST_WORKFLOW_IDS_JSON="${workflow_ids_json}" RESULTS_FILE="${RESULTS_FILE}" python3 - <<'PY'
 import datetime as dt
 import json
 import os
 from pathlib import Path
+
+workflow_ids = json.loads(os.environ.get("TEST_WORKFLOW_IDS_JSON", "[]"))
+if not isinstance(workflow_ids, list):
+    workflow_ids = []
 
 row = {
   "test_name": os.environ["TEST_NAME"],
   "status": os.environ["TEST_STATUS"],
   "started_at": dt.datetime.now(dt.timezone.utc).isoformat(),
   "finished_at": dt.datetime.now(dt.timezone.utc).isoformat(),
-  "workflow_ids": [],
+  "workflow_ids": workflow_ids,
   "notes": os.environ.get("TEST_NOTES", "")
 }
 path = Path(os.environ["RESULTS_FILE"])
@@ -52,9 +57,10 @@ PY
 
 run_test() {
   local test_pattern="$1"
+  local workflow_ids_json="${2:-[]}"
   echo "[TEST] ${test_pattern}"
   python3 -m unittest discover -s tests -p "${test_pattern}"
-  record_result "tests/${test_pattern}" "pass"
+  record_result "tests/${test_pattern}" "pass" "" "${workflow_ids_json}"
 }
 
 echo "[Step 1] Phase A readiness"
@@ -83,7 +89,7 @@ echo "[INFO] docker_available=${DOCKER_AVAILABLE}"
 
 echo "[Step 6] P1/P2 tests + result capture"
 if [ "${DOCKER_AVAILABLE}" = "true" ]; then
-  run_test "test_tool_worker_l3_docker.py"
+  run_test "test_tool_worker_l3_docker.py" '["wf-docker"]'
 else
   record_result "tests/test_tool_worker_l3_docker.py" "skip" "docker unavailable"
 fi
