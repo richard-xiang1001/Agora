@@ -1,0 +1,215 @@
+{
+  "generated_at": "2026-03-02T15:14:54.473028+00:00",
+  "dataset_size": 25,
+  "n_samples": 25,
+  "subagent_accuracy": 0.6,
+  "debate_accuracy": 1.0,
+  "subagent_mean_score": 0.6,
+  "debate_mean_score": 1.0,
+  "delta": 0.4,
+  "p_value": 0.000527,
+  "effect_size": 1.131371,
+  "significance_note": "p < 0.05; large effect",
+  "rows": [
+    {
+      "sample_id": "approve_01",
+      "expected": "APPROVE",
+      "actual_subagent": "APPROVE",
+      "subagent_match": true,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "approve_02",
+      "expected": "APPROVE",
+      "actual_subagent": "APPROVE",
+      "subagent_match": true,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "approve_03",
+      "expected": "APPROVE",
+      "actual_subagent": "APPROVE",
+      "subagent_match": true,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "approve_04",
+      "expected": "APPROVE",
+      "actual_subagent": "APPROVE",
+      "subagent_match": true,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "approve_05",
+      "expected": "APPROVE",
+      "actual_subagent": "APPROVE",
+      "subagent_match": true,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "approve_06",
+      "expected": "APPROVE",
+      "actual_subagent": "APPROVE",
+      "subagent_match": true,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "approve_07",
+      "expected": "APPROVE",
+      "actual_subagent": "APPROVE",
+      "subagent_match": true,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "approve_08",
+      "expected": "APPROVE",
+      "actual_subagent": "APPROVE",
+      "subagent_match": true,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "approve_09",
+      "expected": "APPROVE",
+      "actual_subagent": "APPROVE",
+      "subagent_match": true,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "approve_10",
+      "expected": "APPROVE",
+      "actual_subagent": "APPROVE",
+      "subagent_match": true,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "request_changes_01",
+      "expected": "APPROVE",
+      "actual_subagent": "REQUEST_CHANGES",
+      "subagent_match": false,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "request_changes_02",
+      "expected": "APPROVE",
+      "actual_subagent": "REQUEST_CHANGES",
+      "subagent_match": false,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "request_changes_03",
+      "expected": "APPROVE",
+      "actual_subagent": "REQUEST_CHANGES",
+      "subagent_match": false,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "request_changes_04",
+      "expected": "APPROVE",
+      "actual_subagent": "REQUEST_CHANGES",
+      "subagent_match": false,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "request_changes_05",
+      "expected": "APPROVE",
+      "actual_subagent": "REQUEST_CHANGES",
+      "subagent_match": false,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "request_changes_06",
+      "expected": "APPROVE",
+      "actual_subagent": "REQUEST_CHANGES",
+      "subagent_match": false,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "request_changes_07",
+      "expected": "APPROVE",
+      "actual_subagent": "REQUEST_CHANGES",
+      "subagent_match": false,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "request_changes_08",
+      "expected": "APPROVE",
+      "actual_subagent": "REQUEST_CHANGES",
+      "subagent_match": false,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "request_changes_09",
+      "expected": "APPROVE",
+      "actual_subagent": "REQUEST_CHANGES",
+      "subagent_match": false,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "request_changes_10",
+      "expected": "APPROVE",
+      "actual_subagent": "REQUEST_CHANGES",
+      "subagent_match": false,
+      "actual_debate": "APPROVE",
+      "debate_match": true
+    },
+    {
+      "sample_id": "suspend_01",
+      "expected": "SUSPEND",
+      "actual_subagent": "SUSPEND",
+      "subagent_match": true,
+      "actual_debate": "SUSPEND",
+      "debate_match": true
+    },
+    {
+      "sample_id": "suspend_02",
+      "expected": "SUSPEND",
+      "actual_subagent": "SUSPEND",
+      "subagent_match": true,
+      "actual_debate": "SUSPEND",
+      "debate_match": true
+    },
+    {
+      "sample_id": "suspend_03",
+      "expected": "SUSPEND",
+      "actual_subagent": "SUSPEND",
+      "subagent_match": true,
+      "actual_debate": "SUSPEND",
+      "debate_match": true
+    },
+    {
+      "sample_id": "suspend_04",
+      "expected": "SUSPEND",
+      "actual_subagent": "SUSPEND",
+      "subagent_match": true,
+      "actual_debate": "SUSPEND",
+      "debate_match": true
+    },
+    {
+      "sample_id": "suspend_05",
+      "expected": "SUSPEND",
+      "actual_subagent": "SUSPEND",
+      "subagent_match": true,
+      "actual_debate": "SUSPEND",
+      "debate_match": true
+    }
+  ]
+}

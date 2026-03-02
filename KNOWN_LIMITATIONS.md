@@ -26,10 +26,20 @@
 - Test-stage API invocation is constrained to `:free` models only; model behavior under paid/SOTA providers is intentionally out of scope for current validation.
 
 ## L3 Isolation Status
-- L3 container mount isolation is not implemented in MVP (`l3_isolation_mode=unimplemented`).
-- Current fallback is process-level isolation; sandbox verification operations are denied by default (`allow_sandbox_verification_without_l3=false`).
-- Accepted risk: weaker cross-agent mount/file-visibility boundaries than containerized isolation.
-- Exit criteria: container mount strategy implemented and guarded by automated tests.
+- Current L3 mode: `docker_compose` (`l3_isolation_mode=docker_compose`).
+- Sandbox verification remains guarded by policy (`allow_sandbox_verification_without_l3=false`).
+- Accepted risk: single-host deployment assumptions still apply; multi-host consistency is not covered.
+- Exit criteria: distributed-safe coordination and multi-host runtime verification are implemented.
+
+## Workflow Cancel Semantics
+- Cancel is cooperative and becomes effective at debate round boundaries.
+- A single in-flight external LLM call cannot be force-killed; cancellation may be delayed until timeout/checkpoint.
+- `cancel_after_round` reuses cooperative cancellation checkpoints (round-boundary only).
+
+## Week9 Runtime Limits
+- Session request rate limiting is process-memory based (`session_quota` window counters) and resets on process restart.
+- Cost budget enforcement is session-local and file-backed; multi-host shared budget consistency is not implemented.
+- `api.py` has been split into routes/controllers/services, but `debate_executor.py` and `llm_client.py` remain large and are deferred for the next refactor cycle.
 
 ## Week7 Risk Registry
 - R-06: Red-team remains fixture-driven and does not yet replay anonymized production traffic distribution.

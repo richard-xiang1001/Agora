@@ -1,0 +1,90 @@
+{
+  "generated_at": "2026-03-02T15:16:53.645213+00:00",
+  "overall_pass": true,
+  "checks": [
+    {
+      "name": "tests.week9.api_layer_structure",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week9.hard_constraint_adversarial",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week9.session_budget",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week9.session_rate_limit",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week9.audit_scrub",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week9.cancel_after_round",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week9.debate_quality_statistics",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week9.adversarial_lint",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "gate.prompt_embedding",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "gate.live_dry_run",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "bench.quality",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "bench.quality_lint",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "lint.known_vs_runtime",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "regression.week8",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    }
+  ]
+}

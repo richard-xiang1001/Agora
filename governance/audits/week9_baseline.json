@@ -1,0 +1,7 @@
+{
+  "generated_at": "2026-03-02T15:17:10.463383+00:00",
+  "api_py_lines": 121,
+  "hard_constraint_fixture_samples": 25,
+  "audit_policy_present": true,
+  "routes_layer_present": true
+}
