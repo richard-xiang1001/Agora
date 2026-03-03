@@ -199,8 +199,21 @@ entries:
       - agora/controllers/__init__.py
       - agora/controllers/schemas.py
       - agora/controllers/session_controller.py
+      - agora/controllers/runtime_controller.py
+      - agora/controllers/memory_controller.py
       - agora/controllers/message_controller.py
       - agora/controllers/workflow_controller.py
+      - agora/runtime/__init__.py
+      - agora/runtime/queue_manager.py
+      - agora/runtime/checkpoint_store.py
+      - agora/runtime/loop_runner.py
+      - agora/memory/__init__.py
+      - agora/memory/layers.py
+      - agora/memory/retrieval.py
+      - agora/memory/write_policy.py
+      - agora/initiative/__init__.py
+      - agora/initiative/policy_engine.py
+      - agora/initiative/action_guard.py
       - agora/services/__init__.py
       - agora/services/routing_service.py
       - agora/services/execution_service.py
@@ -211,6 +224,9 @@ entries:
       - agora/state_projector.py
       - agora/verification_engine.py
       - config/audit_policy.yaml
+      - config/runtime_loop_policy.yaml
+      - config/memory_policy.yaml
+      - config/initiative_policy.yaml
       - config/fallback_chains.yaml
       - config/model_family_map.yaml
       - scripts/run_week1_acceptance.sh
@@ -222,6 +238,7 @@ entries:
       - scripts/run_redteam_suite.py
       - scripts/run_fault_storm_drill.py
       - scripts/run_budget_persistence_integration.py
+      - scripts/run_week11_quick_iteration_acceptance.sh
     tests:
       - tests/test_feature_and_routing.py
       - tests/test_decision_state_machine.py

@@ -5,10 +5,22 @@ import uuid
 from fastapi import APIRouter, Request
 
 from agora.controllers import message_controller, session_controller
+from agora.controllers import memory_controller, runtime_controller
 from agora.controllers.schemas import (
+    InitiativePolicyRequest,
+    InitiativePolicyResponse,
+    MemoryDecayResponse,
+    MemoryIngestRequest,
+    MemoryIngestResponse,
+    MemoryQueryRequest,
+    MemoryQueryResponse,
+    MemoryStatsResponse,
     MessageRequest,
     MessageResponse,
     RoutePreviewRequest,
+    RuntimeTaskEnqueueResponse,
+    RuntimeTaskRequest,
+    RuntimeTaskStatusResponse,
     SessionBudgetRequest,
     SessionBudgetResponse,
     SessionBudgetPolicyRequest,
@@ -73,6 +85,67 @@ def get_session_budget_policy(session_id: str, request: Request) -> SessionBudge
         session_id=session_id,
         defaults=request.app.state.budget_policy_defaults,
     )
+
+
+@router.post("/v1/sessions/{session_id}/initiative/policy", response_model=InitiativePolicyResponse)
+def set_session_initiative_policy(
+    session_id: str, req: InitiativePolicyRequest, request: Request
+) -> InitiativePolicyResponse:
+    return session_controller.set_session_initiative_policy(
+        root=request.app.state.base_dir,
+        session_id=session_id,
+        req=req,
+        defaults=request.app.state.initiative_policy_defaults,
+    )
+
+
+@router.get("/v1/sessions/{session_id}/initiative/policy", response_model=InitiativePolicyResponse)
+def get_session_initiative_policy(session_id: str, request: Request) -> InitiativePolicyResponse:
+    return session_controller.get_session_initiative_policy(
+        root=request.app.state.base_dir,
+        session_id=session_id,
+        defaults=request.app.state.initiative_policy_defaults,
+    )
+
+
+@router.post("/v1/sessions/{session_id}/tasks", response_model=RuntimeTaskEnqueueResponse)
+def enqueue_session_task(session_id: str, req: RuntimeTaskRequest, request: Request) -> RuntimeTaskEnqueueResponse:
+    return runtime_controller.enqueue_task(
+        app=request.app,
+        root=request.app.state.base_dir,
+        session_id=session_id,
+        req=req,
+    )
+
+
+@router.get("/v1/sessions/{session_id}/tasks/{task_id}", response_model=RuntimeTaskStatusResponse)
+def get_session_task(session_id: str, task_id: str, request: Request) -> RuntimeTaskStatusResponse:
+    return runtime_controller.get_task(
+        app=request.app,
+        root=request.app.state.base_dir,
+        session_id=session_id,
+        task_id=task_id,
+    )
+
+
+@router.post("/v1/sessions/{session_id}/memory/ingest", response_model=MemoryIngestResponse)
+def memory_ingest(session_id: str, req: MemoryIngestRequest, request: Request) -> MemoryIngestResponse:
+    return memory_controller.ingest(root=request.app.state.base_dir, session_id=session_id, req=req)
+
+
+@router.post("/v1/sessions/{session_id}/memory/query", response_model=MemoryQueryResponse)
+def memory_query(session_id: str, req: MemoryQueryRequest, request: Request) -> MemoryQueryResponse:
+    return memory_controller.query(root=request.app.state.base_dir, session_id=session_id, req=req)
+
+
+@router.post("/v1/sessions/{session_id}/memory/decay/run", response_model=MemoryDecayResponse)
+def memory_decay(session_id: str, request: Request) -> MemoryDecayResponse:
+    return memory_controller.decay(root=request.app.state.base_dir, session_id=session_id)
+
+
+@router.get("/v1/sessions/{session_id}/memory/stats", response_model=MemoryStatsResponse)
+def memory_stats(session_id: str, request: Request) -> MemoryStatsResponse:
+    return memory_controller.stats(root=request.app.state.base_dir, session_id=session_id)
 
 
 @router.post("/v1/route/preview")

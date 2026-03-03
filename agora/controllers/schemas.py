@@ -88,6 +88,9 @@ class MessageResponse(BaseModel):
     cancelled_at_round: int | None = None
     budget_policy_applied: Literal["none", "block", "degrade_to_mock", "allow_with_audit"] = "none"
     degraded_execution: bool = False
+    runtime_mode: Literal["request_driven", "queued_runtime"] = "request_driven"
+    initiative_status: Literal["none", "proposed", "approved", "blocked", "executed"] = "none"
+    memory_write_events: int = 0
 
 
 class RoutePreviewRequest(BaseModel):
@@ -127,3 +130,109 @@ class IncidentCreateRequest(BaseModel):
     root_cause: str
     affected_components: list[str]
     due_date: str | None = None
+
+
+class RuntimeStartResponse(BaseModel):
+    running: bool
+    queue_depth: int
+    recovered_tasks: int = 0
+
+
+class RuntimeStopResponse(BaseModel):
+    running: bool
+
+
+class RuntimeStatusResponse(BaseModel):
+    running: bool
+    queue_depth: int
+    active_task_id: str | None = None
+    processed_count: int = 0
+
+
+class RuntimeTaskRequest(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+    command_text: str = Field(min_length=1)
+    raw_features: dict[str, Any] | None = None
+    subagent_disagreement: bool = False
+    authorization: MessageAuthorization | None = None
+    request_id: str | None = Field(default=None, min_length=8, max_length=64, pattern=r"^[A-Za-z0-9._-]+$")
+    cancel_after_round: int | None = Field(default=None, ge=1, le=3)
+
+
+class RuntimeTaskEnqueueResponse(BaseModel):
+    task_id: str
+    session_id: str
+    status: Literal["queued", "running", "waiting_user", "cancelled", "completed", "failed"]
+
+
+class RuntimeTaskStatusResponse(BaseModel):
+    task_id: str
+    session_id: str
+    status: Literal["queued", "running", "waiting_user", "cancelled", "completed", "failed"]
+    workflow_id: str | None = None
+    error: str | None = None
+    response: dict[str, Any] | None = None
+
+
+class InitiativePolicyRequest(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+    mode: Literal["manual_confirm", "suggest_only", "auto_low_risk"] = "suggest_only"
+    max_auto_actions_per_hour: int = Field(default=3, ge=0)
+    require_human_on_budget_exceeded: bool = True
+
+
+class InitiativePolicyView(BaseModel):
+    mode: Literal["manual_confirm", "suggest_only", "auto_low_risk"]
+    max_auto_actions_per_hour: int
+    require_human_on_budget_exceeded: bool
+
+
+class InitiativePolicyResponse(BaseModel):
+    session_id: str
+    initiative_policy: InitiativePolicyView
+
+
+class MemoryIngestRequest(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+    layer: Literal["episodic", "semantic", "procedural"]
+    content: str = Field(min_length=1)
+    source: str = Field(min_length=1)
+    confidence: float = Field(default=0.8, ge=0.0, le=1.0)
+    tags: list[str] = Field(default_factory=list)
+
+
+class MemoryIngestResponse(BaseModel):
+    session_id: str
+    inserted: bool
+    record_id: str
+    layer: Literal["episodic", "semantic", "procedural"]
+
+
+class MemoryQueryRequest(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class MemoryQueryHit(BaseModel):
+    record_id: str
+    layer: Literal["episodic", "semantic", "procedural"]
+    score: float
+    content: str
+    hit_path: str
+
+
+class MemoryQueryResponse(BaseModel):
+    session_id: str
+    hits: list[MemoryQueryHit]
+
+
+class MemoryDecayResponse(BaseModel):
+    session_id: str
+    decayed_count: int
+
+
+class MemoryStatsResponse(BaseModel):
+    session_id: str
+    by_layer: dict[str, int]
+    total: int

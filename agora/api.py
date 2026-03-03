@@ -11,9 +11,14 @@ from fastapi import FastAPI
 
 from agora.debate_executor import DebateExecutor
 from agora.execution_controller import ExecutionController
+from agora.initiative.policy_engine import load_defaults as load_initiative_defaults
 from agora.irreversibility_gate import IrreversibilityGate
 from agora.llm_client import build_llm_client, load_llm_policy, validate_openrouter_auth
-from agora.operator_policy import load_operator_allow_bits, load_session_quota
+from agora.operator_policy import (
+    load_budget_policy_defaults,
+    load_operator_allow_bits,
+    load_session_quota,
+)
 from agora.prompt_registry import load_catalog
 from agora.rule_engine import RuleEngine
 from agora.routes import admin_router, internal_router, sessions_router, workflows_router
@@ -68,7 +73,12 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
     app.state.operator_allow_bits = operator_allow_bits
     app.state.operator_policy_source = operator_policy_source
     app.state.session_quota = load_session_quota(root=operator_policy_path.parent.parent)
+    app.state.budget_policy_defaults = load_budget_policy_defaults(root=operator_policy_path.parent.parent)
+    app.state.initiative_policy_defaults = load_initiative_defaults(root, repo_root)
     app.state.session_rate_windows = {}
+    app.state.runtime_running = False
+    app.state.runtime_active_task_id = None
+    app.state.runtime_processed_count = 0
 
     app.state.llm_policy = load_llm_policy(llm_policy_path)
     app.state.llm_client = build_llm_client(app.state.llm_policy, root_dir=root, repo_root=repo_root)

@@ -1,0 +1,3 @@
+mode: suggest_only
+max_auto_actions_per_hour: 3
+require_human_on_budget_exceeded: true

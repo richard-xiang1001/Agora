@@ -1,0 +1,10 @@
+write_policy:
+  min_confidence: 0.6
+  high_value_events:
+    - workflow_completed
+    - workflow_failed
+    - initiative_executed
+    - session_budget_exceeded
+    - hard_constraint_reject
+retrieval:
+  default_top_k: 5

@@ -11,6 +11,10 @@ from typing import Any
 from fastapi import HTTPException
 
 from agora.controllers.schemas import MessageRequest, MessageResponse, RoutePreviewRequest
+from agora.initiative.action_guard import evaluate_initiative
+from agora.initiative.policy_engine import load_session_policy
+from agora.memory.layers import MemoryLayerStore
+from agora.memory.write_policy import choose_layer, should_write_memory
 from agora.models import FALLBACK_FEATURES, RoutingDecision
 from agora.services import routing_service
 from agora.services.audit_service import append_audit_event, now_iso, read_json, request_fingerprint, write_json
@@ -165,7 +169,14 @@ def _enforce_rate_limit_or_raise(*, app: Any, session_id: str) -> None:
     dq.append(now_ts)
 
 
-def create_message(*, app: Any, root: Path, session_id: str, req: MessageRequest) -> MessageResponse:
+def create_message(
+    *,
+    app: Any,
+    root: Path,
+    session_id: str,
+    req: MessageRequest,
+    runtime_mode: str = "request_driven",
+) -> MessageResponse:
     session_dir = root / "sessions" / session_id
     if not session_dir.exists():
         raise HTTPException(status_code=404, detail="session not found")
@@ -328,6 +339,46 @@ def create_message(*, app: Any, root: Path, session_id: str, req: MessageRequest
     def _is_cancel_requested() -> bool:
         with app.state.workflow_cancel_lock:
             return workflow_id in app.state.workflow_cancel_flags
+
+    session_policy = load_session_policy(root, session_id, app.state.initiative_policy_defaults)
+    initiative_status, _initiative_auto = evaluate_initiative(
+        policy=session_policy,
+        risk_level=features.risk_level,
+        requires_tools=features.requires_tools,
+        hard_constraint_hit=bool(hard_match.hit),
+        budget_policy_applied=budget_policy_applied,
+    )
+    if initiative_status in {"proposed", "blocked", "executed"}:
+        try:
+            append_audit_event(
+                daemon=app.state.audit_daemon,
+                component_id="orchestrator",
+                key_id=os.getenv("AUDIT_ACTIVE_KEY_ID", "key_v1"),
+                secret=os.getenv("AUDIT_KEY_ORCHESTRATOR", "dev-secret-orchestrator"),
+                event_type=f"initiative_{initiative_status}",
+                payload={
+                    "session_id": session_id,
+                    "workflow_id": workflow_id,
+                    "mode": session_policy.get("mode"),
+                    "risk_level": features.risk_level,
+                },
+                trace_id=trace_id,
+            )
+        except Exception:
+            pass
+    if initiative_status == "executed":
+        try:
+            append_audit_event(
+                daemon=app.state.audit_daemon,
+                component_id="orchestrator",
+                key_id=os.getenv("AUDIT_ACTIVE_KEY_ID", "key_v1"),
+                secret=os.getenv("AUDIT_KEY_ORCHESTRATOR", "dev-secret-orchestrator"),
+                event_type="initiative_approved",
+                payload={"session_id": session_id, "workflow_id": workflow_id, "mode": session_policy.get("mode")},
+                trace_id=trace_id,
+            )
+        except Exception:
+            pass
 
     try:
         run_result = execute_workflow(
@@ -522,6 +573,21 @@ def create_message(*, app: Any, root: Path, session_id: str, req: MessageRequest
         except Exception:
             pass
 
+    memory_write_events = 0
+    memory_event_type = "workflow_completed" if run_result["workflow_status"] == "completed" else "workflow_failed"
+    if should_write_memory(confidence=float(features.confidence), event_type=memory_event_type):
+        layer = choose_layer(event_type=memory_event_type, raw_features=req.raw_features)
+        store = MemoryLayerStore(root, session_id)
+        inserted, _ = store.ingest(
+            layer=layer,
+            content=f"{req.command_text} => {run_result['workflow_status']} ({run_result['execution_mode']})",
+            source=f"workflow:{workflow_id}",
+            confidence=float(features.confidence),
+            tags=[str(features.task_intent), str(features.risk_level)],
+        )
+        if inserted:
+            memory_write_events += 1
+
     response = MessageResponse(
         workflow_id=workflow_id,
         session_id=session_id,
@@ -542,6 +608,9 @@ def create_message(*, app: Any, root: Path, session_id: str, req: MessageRequest
         cancelled_at_round=run_result.get("cancelled_at_round"),
         budget_policy_applied=budget_policy_applied,
         degraded_execution=degraded_execution,
+        runtime_mode="queued_runtime" if runtime_mode == "queued_runtime" else "request_driven",
+        initiative_status=initiative_status,
+        memory_write_events=memory_write_events,
     )
     if req.request_id:
         requests_index[req.request_id] = {

@@ -6,6 +6,9 @@ from typing import Any
 from fastapi import HTTPException
 
 from agora.controllers.schemas import (
+    InitiativePolicyRequest,
+    InitiativePolicyResponse,
+    InitiativePolicyView,
     SessionBudgetPolicyRequest,
     SessionBudgetPolicyResponse,
     SessionBudgetPolicyView,
@@ -13,6 +16,7 @@ from agora.controllers.schemas import (
     SessionBudgetResponse,
     SessionBudgetView,
 )
+from agora.initiative.policy_engine import load_session_policy, save_session_policy
 from agora.services.audit_service import now_iso, read_json, write_json
 
 
@@ -140,4 +144,43 @@ def get_session_budget_policy(*, root: Path, session_id: str, defaults: Any) -> 
     return SessionBudgetPolicyResponse(
         session_id=session_id,
         budget_policy=SessionBudgetPolicyView(**payload),
+    )
+
+
+def set_session_initiative_policy(
+    *,
+    root: Path,
+    session_id: str,
+    req: InitiativePolicyRequest,
+    defaults: dict[str, Any],
+) -> InitiativePolicyResponse:
+    session_dir = root / "sessions" / session_id
+    if not session_dir.exists():
+        raise HTTPException(status_code=404, detail="session not found")
+    payload = {
+        "mode": req.mode,
+        "max_auto_actions_per_hour": req.max_auto_actions_per_hour,
+        "require_human_on_budget_exceeded": req.require_human_on_budget_exceeded,
+    }
+    save_session_policy(root, session_id, payload)
+    return InitiativePolicyResponse(
+        session_id=session_id,
+        initiative_policy=InitiativePolicyView(**payload),
+    )
+
+
+def get_session_initiative_policy(
+    *,
+    root: Path,
+    session_id: str,
+    defaults: dict[str, Any],
+) -> InitiativePolicyResponse:
+    session_dir = root / "sessions" / session_id
+    if not session_dir.exists():
+        raise HTTPException(status_code=404, detail="session not found")
+    payload = load_session_policy(root, session_id, defaults)
+    save_session_policy(root, session_id, payload)
+    return InitiativePolicyResponse(
+        session_id=session_id,
+        initiative_policy=InitiativePolicyView(**payload),
     )

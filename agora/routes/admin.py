@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
+from agora.controllers import runtime_controller
 from agora.controllers import workflow_controller
-from agora.controllers.schemas import IncidentCreateRequest, ToolApproveRequest
+from agora.controllers.schemas import (
+    IncidentCreateRequest,
+    RuntimeStartResponse,
+    RuntimeStatusResponse,
+    RuntimeStopResponse,
+    ToolApproveRequest,
+)
 
 router = APIRouter()
 
@@ -46,3 +53,18 @@ def redteam_run(request: Request) -> dict:
 @router.get("/v1/redteam/report")
 def redteam_report(request: Request) -> dict:
     return workflow_controller.redteam_report(request.app.state.base_dir)
+
+
+@router.post("/v1/runtime/start", response_model=RuntimeStartResponse)
+def runtime_start(request: Request) -> RuntimeStartResponse:
+    return runtime_controller.runtime_start(app=request.app, root=request.app.state.base_dir)
+
+
+@router.post("/v1/runtime/stop", response_model=RuntimeStopResponse)
+def runtime_stop(request: Request) -> RuntimeStopResponse:
+    return runtime_controller.runtime_stop(app=request.app)
+
+
+@router.get("/v1/runtime/status", response_model=RuntimeStatusResponse)
+def runtime_status(request: Request) -> RuntimeStatusResponse:
+    return runtime_controller.runtime_status(app=request.app, root=request.app.state.base_dir)

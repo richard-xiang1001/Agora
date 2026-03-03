@@ -60,6 +60,7 @@ class AuditDaemon:
     def append_event(self, request: AuditAppendRequest, force_wal: bool = False) -> AuditAppendResult:
         self.refresh_health_state(cause="append_pre")
         self._verify_hmac(request)
+        self._validate_event_payload(request.event_type, request.payload)
 
         if request.event_id in self._event_ids:
             state = self.refresh_health_state(cause="append_duplicate")
@@ -123,6 +124,16 @@ class AuditDaemon:
                 audit_state=state["audit_state"],
                 health_snapshot=self._build_health_snapshot(state),
             )
+
+    @staticmethod
+    def _validate_event_payload(event_type: str, payload: dict[str, Any]) -> None:
+        if not isinstance(payload, dict):
+            raise ValueError("audit payload must be object")
+        if event_type.startswith("initiative_"):
+            if "session_id" not in payload:
+                raise ValueError("initiative audit payload missing session_id")
+            if "workflow_id" not in payload and event_type in {"initiative_proposed", "initiative_blocked", "initiative_executed", "initiative_approved"}:
+                raise ValueError("initiative audit payload missing workflow_id")
 
     def is_readonly_mode(self) -> bool:
         return self._wal_size_bytes() >= self.wal_capacity_bytes

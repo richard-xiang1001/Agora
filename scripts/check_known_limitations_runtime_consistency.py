@@ -12,6 +12,9 @@ def main() -> int:
     parser.add_argument("--known", default="KNOWN_LIMITATIONS.md")
     parser.add_argument("--runtime", default="config/runtime_capabilities.yaml")
     parser.add_argument("--routes-dir", default="agora/routes")
+    parser.add_argument("--runtime-dir", default="agora/runtime")
+    parser.add_argument("--memory-dir", default="agora/memory")
+    parser.add_argument("--initiative-dir", default="agora/initiative")
     args = parser.parse_args()
 
     known_text = Path(args.known).read_text(encoding="utf-8").lower()
@@ -46,6 +49,19 @@ def main() -> int:
                 text = path.read_text(encoding="utf-8")
                 if "APIRouter" not in text:
                     errors.append(f"route module does not define APIRouter usage: {path}")
+
+    for mod_dir, must_files in [
+        (Path(args.runtime_dir), ["queue_manager.py", "checkpoint_store.py", "loop_runner.py"]),
+        (Path(args.memory_dir), ["layers.py", "write_policy.py", "retrieval.py"]),
+        (Path(args.initiative_dir), ["policy_engine.py", "action_guard.py"]),
+    ]:
+        if not mod_dir.exists():
+            errors.append(f"module directory missing: {mod_dir}")
+            continue
+        for name in must_files:
+            p = mod_dir / name
+            if not p.exists():
+                errors.append(f"module file missing: {p}")
 
     if errors:
         print("[FAIL] known limitations/runtime consistency")
