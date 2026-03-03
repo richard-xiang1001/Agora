@@ -173,6 +173,10 @@ entries:
     modules:
       - agora/__init__.py
       - agora/debate_engine.py
+      - agora/debate/__init__.py
+      - agora/debate/cancel_policy.py
+      - agora/debate/metrics_writer.py
+      - agora/debate/round_runner.py
       - agora/decision_state_machine.py
       - agora/fallback.py
       - agora/fault_storm.py
@@ -182,6 +186,11 @@ entries:
       - agora/memory_store.py
       - agora/model_registry.py
       - agora/models.py
+      - agora/llm/__init__.py
+      - agora/llm/costing.py
+      - agora/llm/policy_loader.py
+      - agora/llm/provider_openrouter.py
+      - agora/llm/retry_backoff.py
       - agora/routes/__init__.py
       - agora/routes/sessions.py
       - agora/routes/workflows.py

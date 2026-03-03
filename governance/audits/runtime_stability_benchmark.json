@@ -1,0 +1,8 @@
+{
+  "generated_at": "2026-03-03T05:20:45.769421+00:00",
+  "n_samples": 12,
+  "p95_latency_ms": 2.489,
+  "mean_latency_ms": 2.359,
+  "error_rate": 0.0,
+  "cancel_latency_ms_p95": 3.833
+}

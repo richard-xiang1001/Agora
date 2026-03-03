@@ -1,0 +1,14 @@
+{
+  "errors": [],
+  "warnings": [],
+  "pass": true,
+  "runtime_stability_regression_detected": false,
+  "current": {
+    "p95_latency_ms": 2.489,
+    "error_rate": 0.0
+  },
+  "baseline": {
+    "p95_latency_ms": 2.542,
+    "error_rate": 0.0
+  }
+}

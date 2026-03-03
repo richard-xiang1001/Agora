@@ -9,6 +9,12 @@ Agora is a local-first, auditable code-review orchestration system with determin
 - `agora/controllers/`: request orchestration (idempotency, budget/rate-limit checks, cancel).
 - `agora/services/`: framework-agnostic helpers (routing, execution, audit wrappers).
 
+## Architecture (Week10)
+
+- `agora/debate_executor.py`: compatibility facade; round logic split to `agora/debate/`.
+- `agora/llm_client.py`: compatibility facade; provider/policy/cost/backoff split to `agora/llm/`.
+- Session budget policy supports `block | degrade_to_mock | allow_with_audit`.
+
 ## Quickstart (Mock, 30 minutes)
 
 ### 1) Create venv and install dependencies
@@ -57,6 +63,7 @@ make gate-week9
 make test-adversarial
 make bench-quality
 make check-budget
+make gate-week10
 ```
 
 ## Internal API auth

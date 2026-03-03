@@ -1,0 +1,90 @@
+{
+  "generated_at": "2026-03-03T05:21:38.527239+00:00",
+  "overall_pass": true,
+  "checks": [
+    {
+      "name": "tests.week10.debate_layer",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week10.llm_layer",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week10.budget_policy",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week10.budget_policy_degraded",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week10.runtime_stability",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week9.contract",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week9.cancel",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "tests.week9.live_gate",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "gate.prompt_embedding",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "gate.live_dry_run",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "bench.runtime_stability",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "bench.runtime_stability_lint",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "lint.known_vs_runtime",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    },
+    {
+      "name": "regression.week9",
+      "pass": true,
+      "rc": 0,
+      "detail": "ok"
+    }
+  ]
+}

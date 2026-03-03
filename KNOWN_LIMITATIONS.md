@@ -41,6 +41,11 @@
 - Cost budget enforcement is session-local and file-backed; multi-host shared budget consistency is not implemented.
 - `api.py` has been split into routes/controllers/services, but `debate_executor.py` and `llm_client.py` remain large and are deferred for the next refactor cycle.
 
+## Week10 Runtime Limits
+- Debate/LLM layers are split into facade + module internals; distributed cancellation semantics remain unchanged (cooperative only).
+- Budget policy (`block|degrade_to_mock|allow_with_audit`) is session-local and file-backed, still single-host consistency only.
+- Runtime stability benchmark is local mock-based; it is a release gate signal, not a substitute for production traffic replay.
+
 ## Week7 Risk Registry
 - R-06: Red-team remains fixture-driven and does not yet replay anonymized production traffic distribution.
 - R-08: Multi-instance budget persistence requires externalized state (Redis/etcd) and is not implemented.
