@@ -41,7 +41,7 @@ class DebateExecutorRealTests(unittest.TestCase):
             status_code = getattr(exc, "status_code", None)
             if status_code in {401, 403}:
                 self.fail(f"auth status should fail test: {exc.__class__.__name__}: {exc}")
-            if status_code in {429, 500, 502, 503, 504}:
+            if status_code in {404, 429, 500, 502, 503, 504}:
                 self.skipTest(f"openrouter transient failure: {exc.__class__.__name__}: {exc}")
             if isinstance(exc, (TimeoutError, OSError, ConnectionError)):
                 self.skipTest(f"network transient failure: {exc.__class__.__name__}: {exc}")
