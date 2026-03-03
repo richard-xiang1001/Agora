@@ -46,6 +46,11 @@
 - Budget policy (`block|degrade_to_mock|allow_with_audit`) is session-local and file-backed, still single-host consistency only.
 - Runtime stability benchmark is local mock-based; it is a release gate signal, not a substitute for production traffic replay.
 
+## Week11 Runtime/Memory/Initiative Limits
+- Runtime loop persistence is local-file based (`runtime/task_queue.jsonl` + `runtime/checkpoint.json`); multi-host coordination is still out of scope.
+- Memory v2 is file-backed and lexical retrieval based; no external vector index is used in this phase.
+- Initiative `auto_low_risk` is conservative and constrained by local policy only; no cross-session/global quota coordination.
+
 ## Week7 Risk Registry
 - R-06: Red-team remains fixture-driven and does not yet replay anonymized production traffic distribution.
 - R-08: Multi-instance budget persistence requires externalized state (Redis/etcd) and is not implemented.

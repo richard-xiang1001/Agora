@@ -1,0 +1,101 @@
+{
+  "generated_at": "2026-03-03T05:59:59.975588+00:00",
+  "n_queries": 3,
+  "top_k": 5,
+  "recall_at_k": 1.0,
+  "precision_at_k": 0.333333,
+  "hit_path_distribution": {
+    "layer:episodic": 3,
+    "layer:semantic": 3,
+    "layer:procedural": 3
+  },
+  "rows": [
+    {
+      "query": "auth bug login",
+      "expected_id": "mem_b3bb748814a2",
+      "recall": 1.0,
+      "precision": 0.3333333333333333,
+      "hits": [
+        {
+          "record_id": "mem_b3bb748814a2",
+          "layer": "episodic",
+          "score": 0.97,
+          "content": "fixed auth bug in login module",
+          "hit_path": "layer:episodic"
+        },
+        {
+          "record_id": "mem_82c6e3661a2b",
+          "layer": "semantic",
+          "score": 0.24,
+          "content": "budget exceeded should block execution",
+          "hit_path": "layer:semantic"
+        },
+        {
+          "record_id": "mem_783e15328cf9",
+          "layer": "procedural",
+          "score": 0.21,
+          "content": "for rollback run week10 gate first",
+          "hit_path": "layer:procedural"
+        }
+      ]
+    },
+    {
+      "query": "execution block budget",
+      "expected_id": "mem_b3bb748814a2",
+      "recall": 1.0,
+      "precision": 0.3333333333333333,
+      "hits": [
+        {
+          "record_id": "mem_82c6e3661a2b",
+          "layer": "semantic",
+          "score": 0.94,
+          "content": "budget exceeded should block execution",
+          "hit_path": "layer:semantic"
+        },
+        {
+          "record_id": "mem_b3bb748814a2",
+          "layer": "episodic",
+          "score": 0.27,
+          "content": "fixed auth bug in login module",
+          "hit_path": "layer:episodic"
+        },
+        {
+          "record_id": "mem_783e15328cf9",
+          "layer": "procedural",
+          "score": 0.21,
+          "content": "for rollback run week10 gate first",
+          "hit_path": "layer:procedural"
+        }
+      ]
+    },
+    {
+      "query": "rollback gate",
+      "expected_id": "mem_b3bb748814a2",
+      "recall": 1.0,
+      "precision": 0.3333333333333333,
+      "hits": [
+        {
+          "record_id": "mem_783e15328cf9",
+          "layer": "procedural",
+          "score": 0.91,
+          "content": "for rollback run week10 gate first",
+          "hit_path": "layer:procedural"
+        },
+        {
+          "record_id": "mem_b3bb748814a2",
+          "layer": "episodic",
+          "score": 0.27,
+          "content": "fixed auth bug in login module",
+          "hit_path": "layer:episodic"
+        },
+        {
+          "record_id": "mem_82c6e3661a2b",
+          "layer": "semantic",
+          "score": 0.24,
+          "content": "budget exceeded should block execution",
+          "hit_path": "layer:semantic"
+        }
+      ]
+    }
+  ]
+}

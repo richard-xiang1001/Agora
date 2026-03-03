@@ -15,6 +15,14 @@ Agora is a local-first, auditable code-review orchestration system with determin
 - `agora/llm_client.py`: compatibility facade; provider/policy/cost/backoff split to `agora/llm/`.
 - Session budget policy supports `block | degrade_to_mock | allow_with_audit`.
 
+## Architecture (Week11)
+
+- Added local runtime loop with queue + checkpoint recovery:
+  - `POST /v1/runtime/start|stop`, `GET /v1/runtime/status`
+  - `POST /v1/sessions/{id}/tasks`, `GET /v1/sessions/{id}/tasks/{task_id}`
+- Added memory v2 layered store (`episodic|semantic|procedural`) with ingest/query/decay/stats APIs.
+- Added initiative policy (`manual_confirm|suggest_only|auto_low_risk`) and auditable initiative status.
+
 ## Quickstart (Mock, 30 minutes)
 
 ### 1) Create venv and install dependencies
@@ -64,6 +72,7 @@ make test-adversarial
 make bench-quality
 make check-budget
 make gate-week10
+make gate-week11
 ```
 
 ## Internal API auth
