@@ -26,6 +26,7 @@ def execute_workflow(
     wf_dir: Path,
     cancel_check: Any = None,
     cancel_after_round: int | None = None,
+    force_mock: bool = False,
 ) -> dict[str, Any]:
     verdict_payload: dict[str, Any] | None = None
     debate_verdict_payload: dict[str, Any] | None = None
@@ -53,7 +54,7 @@ def execute_workflow(
                 binding=prompt_assets,
                 llm_client=llm_client,
                 session_dir=wf_dir,
-                use_mock=(llm_policy.mode == "mock"),
+                use_mock=(llm_policy.mode == "mock") or force_mock,
                 cancel_check=cancel_check,
                 cancel_after_round=cancel_after_round,
             )
@@ -64,7 +65,7 @@ def execute_workflow(
                     debate_metrics_payload = json.loads(metrics_path.read_text(encoding="utf-8"))
                 except Exception:
                     debate_metrics_payload = None
-            execution_mode = "debate"
+            execution_mode = "degraded_mock" if force_mock else "debate"
             workflow_status = "completed"
         except DebateCancelledError as exc:
             execution_mode = "debate"
@@ -76,6 +77,56 @@ def execute_workflow(
             raise HTTPException(status_code=503, detail="debate_execution_failed") from exc
     else:
         try:
+            if force_mock:
+                verdict_payload = {
+                    "decision": "REQUEST_CHANGES",
+                    "hard_flag": False,
+                    "summary": "REQUEST_CHANGES: degraded budget policy mock execution.",
+                    "recommendation": "Retry with available budget.",
+                    "claim": {
+                        "agent_id": "subagent-reviewer",
+                        "task_intent": "code_review",
+                        "risk_level": "medium",
+                        "reversibility": "partial",
+                        "tool_need": False,
+                        "conclusion": "Budget policy forced degraded mock execution.",
+                        "evidence": ["budget_limit_exceeded"],
+                        "assumptions": ["mock_fallback"],
+                        "confidence": "medium",
+                    },
+                    "model_source": "mock:budget_policy_fallback",
+                    "llm_meta": {
+                        "provider": "mock",
+                        "model": "mock:budget_policy_fallback",
+                        "agent_id": "subagent-reviewer",
+                        "round_name": "subagent",
+                        "role_id": "subagent-reviewer",
+                        "started_at": None,
+                        "duration_ms": 0,
+                        "attempts": 1,
+                        "retry_count": 0,
+                        "final_status_code": None,
+                        "error_type": None,
+                        "outcome": "ok",
+                        "prompt_tokens": None,
+                        "completion_tokens": None,
+                        "total_tokens": None,
+                        "estimated_cost_usd": None,
+                        "cost_alert_exceeded": False,
+                    },
+                }
+                execution_mode = "degraded_mock"
+                workflow_status = "completed"
+                subagent_llm_meta = verdict_payload.get("llm_meta")
+                return {
+                    "verdict_payload": verdict_payload,
+                    "debate_verdict_payload": debate_verdict_payload,
+                    "debate_metrics_payload": debate_metrics_payload,
+                    "execution_mode": execution_mode,
+                    "workflow_status": workflow_status,
+                    "cancelled_at_round": cancelled_at_round,
+                    "subagent_llm_meta": subagent_llm_meta,
+                }
             verdict = subagent_executor.run(
                 diff=command_text,
                 task_features=features_obj,

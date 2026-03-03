@@ -30,6 +30,22 @@ def _load_budget(session_dir: Path) -> dict[str, Any]:
     )
 
 
+def _load_budget_policy(session_dir: Path, *, defaults: Any) -> dict[str, Any]:
+    return read_json(
+        session_dir / "budget_policy.json",
+        {
+            "on_exceeded": str(getattr(defaults, "default_on_exceeded", "block")),
+            "degrade_model": str(getattr(defaults, "default_degrade_model", "mock")),
+            "grace_requests": int(getattr(defaults, "default_grace_requests", 0)),
+            "grace_used": 0,
+        },
+    )
+
+
+def _save_budget_policy(session_dir: Path, policy: dict[str, Any]) -> None:
+    write_json(session_dir / "budget_policy.json", policy)
+
+
 def _save_budget(session_dir: Path, budget: dict[str, Any]) -> None:
     write_json(session_dir / "budget.json", budget)
 
@@ -42,7 +58,13 @@ def _consume_budget(session_dir: Path, *, cost_usd: float | None, tokens: int | 
     return budget
 
 
-def _enforce_budget_or_raise(*, app: Any, session_id: str, session_dir: Path, trace_id: str) -> None:
+def _handle_budget_policy(
+    *,
+    app: Any,
+    session_id: str,
+    session_dir: Path,
+    trace_id: str,
+) -> tuple[str, bool]:
     budget = _load_budget(session_dir)
     max_cost = budget.get("max_cost_usd")
     max_tokens = budget.get("max_tokens")
@@ -52,7 +74,15 @@ def _enforce_budget_or_raise(*, app: Any, session_id: str, session_dir: Path, tr
         max_tokens is not None and consumed_tokens >= int(max_tokens)
     )
     if not exceeded:
-        return
+        return "none", False
+    policy = _load_budget_policy(session_dir, defaults=app.state.budget_policy_defaults)
+    on_exceeded = str(policy.get("on_exceeded", "block"))
+    grace_requests = int(policy.get("grace_requests", 0))
+    grace_used = int(policy.get("grace_used", 0))
+    if grace_used < grace_requests:
+        policy["grace_used"] = grace_used + 1
+        _save_budget_policy(session_dir, policy)
+        on_exceeded = "allow_with_audit"
     try:
         append_audit_event(
             daemon=app.state.audit_daemon,
@@ -71,7 +101,42 @@ def _enforce_budget_or_raise(*, app: Any, session_id: str, session_dir: Path, tr
         )
     except Exception:
         pass
-    raise HTTPException(status_code=429, detail="budget_exceeded")
+    try:
+        append_audit_event(
+            daemon=app.state.audit_daemon,
+            component_id="gateway",
+            key_id=os.getenv("AUDIT_ACTIVE_KEY_ID", "key_v1"),
+            secret=os.getenv("AUDIT_KEY_GATEWAY", "dev-secret-gateway"),
+            event_type="session_budget_policy_applied",
+            payload={
+                "session_id": session_id,
+                "on_exceeded": on_exceeded,
+                "max_cost_usd": max_cost,
+                "max_tokens": max_tokens,
+                "consumed_cost_usd": consumed_cost,
+                "consumed_tokens": consumed_tokens,
+            },
+            trace_id=trace_id,
+        )
+    except Exception:
+        pass
+    if on_exceeded == "block":
+        raise HTTPException(status_code=429, detail="budget_exceeded")
+    if on_exceeded == "degrade_to_mock":
+        try:
+            append_audit_event(
+                daemon=app.state.audit_daemon,
+                component_id="gateway",
+                key_id=os.getenv("AUDIT_ACTIVE_KEY_ID", "key_v1"),
+                secret=os.getenv("AUDIT_KEY_GATEWAY", "dev-secret-gateway"),
+                event_type="session_budget_degraded_execution",
+                payload={"session_id": session_id},
+                trace_id=trace_id,
+            )
+        except Exception:
+            pass
+        return "degrade_to_mock", True
+    return "allow_with_audit", False
 
 
 def _enforce_rate_limit_or_raise(*, app: Any, session_id: str) -> None:
@@ -137,7 +202,12 @@ def create_message(*, app: Any, root: Path, session_id: str, req: MessageRequest
                 stored["idempotency_hit"] = True
                 return MessageResponse(**stored)
 
-    _enforce_budget_or_raise(app=app, session_id=session_id, session_dir=session_dir, trace_id=trace_id)
+    budget_policy_applied, degraded_execution = _handle_budget_policy(
+        app=app,
+        session_id=session_id,
+        session_dir=session_dir,
+        trace_id=trace_id,
+    )
 
     try:
         hard_match = check_hard_constraints(req.command_text)
@@ -247,6 +317,8 @@ def create_message(*, app: Any, root: Path, session_id: str, req: MessageRequest
         },
         "execution_mode": None,
         "cancel_after_round": req.cancel_after_round,
+        "budget_policy_applied": budget_policy_applied,
+        "degraded_execution": degraded_execution,
     }
     write_json(wf_dir / "workflow.json", initial_workflow_payload)
 
@@ -272,6 +344,7 @@ def create_message(*, app: Any, root: Path, session_id: str, req: MessageRequest
             wf_dir=wf_dir,
             cancel_check=_is_cancel_requested,
             cancel_after_round=req.cancel_after_round,
+            force_mock=degraded_execution,
         )
     except HTTPException as exc:
         detail = exc.detail if isinstance(exc.detail, str) else ""
@@ -305,6 +378,8 @@ def create_message(*, app: Any, root: Path, session_id: str, req: MessageRequest
     workflow_payload = dict(initial_workflow_payload)
     workflow_payload["status"] = run_result["workflow_status"]
     workflow_payload["execution_mode"] = run_result["execution_mode"]
+    workflow_payload["budget_policy_applied"] = budget_policy_applied
+    workflow_payload["degraded_execution"] = degraded_execution
     if run_result["verdict_payload"] is not None:
         workflow_payload["verdict"] = run_result["verdict_payload"]
     if run_result["debate_verdict_payload"] is not None:
@@ -465,6 +540,8 @@ def create_message(*, app: Any, root: Path, session_id: str, req: MessageRequest
         idempotency_hit=False,
         workflow_status=run_result["workflow_status"],
         cancelled_at_round=run_result.get("cancelled_at_round"),
+        budget_policy_applied=budget_policy_applied,
+        degraded_execution=degraded_execution,
     )
     if req.request_id:
         requests_index[req.request_id] = {

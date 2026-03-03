@@ -3,3 +3,7 @@ operator_allow: []
 session_quota:
   max_messages_per_minute: 20
   window_seconds: 60
+budget_policy:
+  default_on_exceeded: block
+  default_degrade_model: mock
+  default_grace_requests: 0

@@ -20,6 +20,13 @@ class SessionQuota:
     window_seconds: int = 60
 
 
+@dataclass(frozen=True)
+class BudgetPolicyDefaults:
+    default_on_exceeded: str = "block"
+    default_degrade_model: str = "mock"
+    default_grace_requests: int = 0
+
+
 def _to_bool_env(name: str, default: bool = False) -> bool:
     raw = os.getenv(name)
     if raw is None:
@@ -165,4 +172,34 @@ def load_session_quota(
     return SessionQuota(
         max_messages_per_minute=max_messages_int,
         window_seconds=window_seconds_int,
+    )
+
+
+def load_budget_policy_defaults(
+    *,
+    root: Path,
+    policy_rel_path: str = "config/operator_policy.yaml",
+) -> BudgetPolicyDefaults:
+    policy_path = (root / policy_rel_path).resolve()
+    if not policy_path.exists():
+        return BudgetPolicyDefaults()
+    raw = yaml.safe_load(policy_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(raw, dict):
+        raise OperatorPolicyError(f"operator policy root payload must be object: {policy_path}")
+    section = raw.get("budget_policy", {})
+    if section is None:
+        return BudgetPolicyDefaults()
+    if not isinstance(section, dict):
+        raise OperatorPolicyError(f"budget_policy must be object: {policy_path}")
+    mode = str(section.get("default_on_exceeded", "block")).strip()
+    if mode not in {"block", "degrade_to_mock", "allow_with_audit"}:
+        raise OperatorPolicyError(f"invalid budget_policy.default_on_exceeded: {mode}")
+    degrade_model = str(section.get("default_degrade_model", "mock")).strip() or "mock"
+    grace = int(section.get("default_grace_requests", 0))
+    if grace < 0:
+        raise OperatorPolicyError("budget_policy.default_grace_requests must be >=0")
+    return BudgetPolicyDefaults(
+        default_on_exceeded=mode,
+        default_degrade_model=degrade_model,
+        default_grace_requests=grace,
     )

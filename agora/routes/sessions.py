@@ -11,6 +11,8 @@ from agora.controllers.schemas import (
     RoutePreviewRequest,
     SessionBudgetRequest,
     SessionBudgetResponse,
+    SessionBudgetPolicyRequest,
+    SessionBudgetPolicyResponse,
     SessionCreateRequest,
     SessionCreateResponse,
 )
@@ -49,6 +51,27 @@ def get_session_budget(session_id: str, request: Request) -> SessionBudgetRespon
     return session_controller.get_session_budget(
         root=request.app.state.base_dir,
         session_id=session_id,
+    )
+
+
+@router.post("/v1/sessions/{session_id}/budget/policy", response_model=SessionBudgetPolicyResponse)
+def set_session_budget_policy(
+    session_id: str, req: SessionBudgetPolicyRequest, request: Request
+) -> SessionBudgetPolicyResponse:
+    return session_controller.set_session_budget_policy(
+        root=request.app.state.base_dir,
+        session_id=session_id,
+        req=req,
+        defaults=request.app.state.budget_policy_defaults,
+    )
+
+
+@router.get("/v1/sessions/{session_id}/budget/policy", response_model=SessionBudgetPolicyResponse)
+def get_session_budget_policy(session_id: str, request: Request) -> SessionBudgetPolicyResponse:
+    return session_controller.get_session_budget_policy(
+        root=request.app.state.base_dir,
+        session_id=session_id,
+        defaults=request.app.state.budget_policy_defaults,
     )
 
 

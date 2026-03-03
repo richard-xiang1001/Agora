@@ -34,6 +34,25 @@ class SessionBudgetResponse(BaseModel):
     budget: SessionBudgetView
 
 
+class SessionBudgetPolicyRequest(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+    on_exceeded: Literal["block", "degrade_to_mock", "allow_with_audit"]
+    degrade_model: str = "mock"
+    grace_requests: int = Field(default=0, ge=0)
+
+
+class SessionBudgetPolicyView(BaseModel):
+    on_exceeded: Literal["block", "degrade_to_mock", "allow_with_audit"]
+    degrade_model: str = "mock"
+    grace_requests: int = 0
+    grace_used: int = 0
+
+
+class SessionBudgetPolicyResponse(BaseModel):
+    session_id: str
+    budget_policy: SessionBudgetPolicyView
+
+
 class MessageAuthorization(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
     requested_domains: list[str] | None = None
@@ -67,6 +86,8 @@ class MessageResponse(BaseModel):
     idempotency_hit: bool = False
     workflow_status: str | None = None
     cancelled_at_round: int | None = None
+    budget_policy_applied: Literal["none", "block", "degrade_to_mock", "allow_with_audit"] = "none"
+    degraded_execution: bool = False
 
 
 class RoutePreviewRequest(BaseModel):

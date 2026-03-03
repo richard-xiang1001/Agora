@@ -5,7 +5,14 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from agora.controllers.schemas import SessionBudgetRequest, SessionBudgetResponse, SessionBudgetView
+from agora.controllers.schemas import (
+    SessionBudgetPolicyRequest,
+    SessionBudgetPolicyResponse,
+    SessionBudgetPolicyView,
+    SessionBudgetRequest,
+    SessionBudgetResponse,
+    SessionBudgetView,
+)
 from agora.services.audit_service import now_iso, read_json, write_json
 
 
@@ -29,6 +36,10 @@ def _budget_path(session_dir: Path) -> Path:
     return session_dir / "budget.json"
 
 
+def _budget_policy_path(session_dir: Path) -> Path:
+    return session_dir / "budget_policy.json"
+
+
 def _load_budget(session_dir: Path) -> dict[str, Any]:
     return read_json(
         _budget_path(session_dir),
@@ -37,6 +48,22 @@ def _load_budget(session_dir: Path) -> dict[str, Any]:
             "max_tokens": None,
             "consumed_cost_usd": 0.0,
             "consumed_tokens": 0,
+        },
+    )
+
+
+def _load_budget_policy(
+    session_dir: Path,
+    *,
+    defaults: Any,
+) -> dict[str, Any]:
+    return read_json(
+        _budget_policy_path(session_dir),
+        {
+            "on_exceeded": str(getattr(defaults, "default_on_exceeded", "block")),
+            "degrade_model": str(getattr(defaults, "default_degrade_model", "mock")),
+            "grace_requests": int(getattr(defaults, "default_grace_requests", 0)),
+            "grace_used": 0,
         },
     )
 
@@ -78,3 +105,39 @@ def get_session_budget(*, root: Path, session_id: str) -> SessionBudgetResponse:
         raise HTTPException(status_code=404, detail="session not found")
     budget = _load_budget(session_dir)
     return _budget_view(session_id, budget)
+
+
+def set_session_budget_policy(
+    *,
+    root: Path,
+    session_id: str,
+    req: SessionBudgetPolicyRequest,
+    defaults: Any,
+) -> SessionBudgetPolicyResponse:
+    session_dir = root / "sessions" / session_id
+    if not session_dir.exists():
+        raise HTTPException(status_code=404, detail="session not found")
+    current = _load_budget_policy(session_dir, defaults=defaults)
+    payload = {
+        "on_exceeded": req.on_exceeded,
+        "degrade_model": req.degrade_model,
+        "grace_requests": req.grace_requests,
+        "grace_used": int(current.get("grace_used", 0)),
+    }
+    write_json(_budget_policy_path(session_dir), payload)
+    return SessionBudgetPolicyResponse(
+        session_id=session_id,
+        budget_policy=SessionBudgetPolicyView(**payload),
+    )
+
+
+def get_session_budget_policy(*, root: Path, session_id: str, defaults: Any) -> SessionBudgetPolicyResponse:
+    session_dir = root / "sessions" / session_id
+    if not session_dir.exists():
+        raise HTTPException(status_code=404, detail="session not found")
+    payload = _load_budget_policy(session_dir, defaults=defaults)
+    write_json(_budget_policy_path(session_dir), payload)
+    return SessionBudgetPolicyResponse(
+        session_id=session_id,
+        budget_policy=SessionBudgetPolicyView(**payload),
+    )
