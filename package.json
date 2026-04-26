@@ -1,0 +1,64 @@
+{
+  "name": "agora-desktop",
+  "version": "0.1.0",
+  "description": "Agora macOS desktop MVP",
+  "main": "desktop/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "desktop:dev": "electron .",
+    "desktop:pack": "PYTHONPATH=. ./.venv/bin/python scripts/desktop_pack_preflight.py",
+    "desktop:pack:raw": "electron-builder --mac zip dmg",
+    "release:reliability:ci": "PYTHONPATH=. uv run --with-requirements requirements.txt python scripts/run_reliability_release_gate.py --desktop-mode skip",
+    "desktop:validate:live": "node scripts/desktop_electron_live_regression.js --provider live",
+    "desktop:validate:runtime-governor": "PYTHONPATH=. uv run python scripts/smoke_agent_team_desktop_validation.py --runtime-governor-smoke",
+    "desktop:validate:team-workspace": "node scripts/desktop_electron_live_regression.js --provider mock --agent-mode team --team-id research-implement-verify --validate-team-workspace --prompt \"Open the team runtime and start coordination.\"",
+    "desktop:validate:team-workspace-live": "node scripts/desktop_electron_live_regression.js --provider live --agent-mode team --team-id research-implement-verify --validate-team-workspace --timeout-ms 300000 --prompt \"Open the team runtime and start coordination with a live provider.\""
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.agora.desktop",
+    "productName": "Agora",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "extraFiles": [
+      {
+        "from": "agora",
+        "to": "backend/agora"
+      },
+      {
+        "from": "config",
+        "to": "backend/config"
+      },
+      {
+        "from": "policy",
+        "to": "backend/policy"
+      },
+      {
+        "from": "prompt_lab",
+        "to": "backend/prompt_lab"
+      },
+      {
+        "from": "tests/fixtures/mock_llm_responses",
+        "to": "backend/tests/fixtures/mock_llm_responses"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "zip",
+        "dmg"
+      ]
+    }
+  },
+  "dependencies": {
+    "marked": "^17.0.4"
+  }
+}

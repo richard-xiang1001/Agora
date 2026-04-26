@@ -1,0 +1,37 @@
+name: Reliability CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  reliability-wiring:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Run reliability wiring gate
+        run: npm run release:reliability:ci
+
+      - name: Run reliability Python tests
+        run: PYTHONPATH=. uv run --with-requirements requirements.txt --with pytest pytest tests/test_release_hygiene.py tests/test_runtime_invariants.py tests/test_reliability_release_gate.py tests/test_reliability_api.py -q

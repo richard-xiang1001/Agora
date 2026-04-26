@@ -21,7 +21,7 @@ from agora.operator_policy import (
 )
 from agora.prompt_registry import load_catalog
 from agora.rule_engine import RuleEngine
-from agora.routes import admin_router, internal_router, sessions_router, workflows_router
+from agora.routes import admin_router, internal_router, sessions_router, ui_router, workflows_router
 from agora.services.audit_service import append_audit_event, build_daemon, load_internal_api_policy
 from agora.subagent_executor import SubagentExecutor
 from agora.tool_worker import ToolWorker
@@ -48,7 +48,7 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
     app = FastAPI(title="Agora API", version="v7.1")
     app.state.base_dir = root
 
-    rules_path = root / "policy" / "routing_rules.yaml"
+    rules_path = _resolve_config_path(root, repo_root, "policy/routing_rules.yaml")
     scopes_path = _resolve_config_path(root, repo_root, "config/permissions_scopes.yaml")
     runtime_caps_path = _resolve_config_path(root, repo_root, "config/runtime_capabilities.yaml")
     sandbox_spec_path = _resolve_config_path(root, repo_root, "config/sandbox_spec.yaml")
@@ -111,7 +111,7 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
 
     app.state.subagent_executor = SubagentExecutor(prompt_root_dir=str(repo_root))
     app.state.debate_executor = DebateExecutor(prompt_root_dir=repo_root, llm_policy=app.state.llm_policy)
-    app.state.execution_controller = ExecutionController(scopes_path, runtime_caps_path)
+    app.state.execution_controller = ExecutionController(scopes_path)
     app.state.tool_worker = ToolWorker(
         execution_controller=app.state.execution_controller,
         irreversibility_gate=IrreversibilityGate(),
@@ -127,5 +127,6 @@ def create_app(base_dir: str | Path = ".") -> FastAPI:
     app.include_router(workflows_router)
     app.include_router(admin_router)
     app.include_router(internal_router)
+    app.include_router(ui_router)
 
     return app

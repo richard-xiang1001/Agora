@@ -1,0 +1,287 @@
+schema_version: "1.1"
+entries:
+  - id: router.feature_extraction
+    type: prompt
+    path: prompt_lab/router_system_prompt.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: constitution.guard_l1
+    type: prompt
+    path: prompt_lab/core/constitution_guard_prompt.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.constitution
+    type: prompt
+    path: prompt_lab/chat/constitution.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.identity
+    type: prompt
+    path: prompt_lab/chat/identity.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.soul
+    type: prompt
+    path: prompt_lab/chat/soul.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.rules.read_before_modify
+    type: prompt
+    path: prompt_lab/chat/rules/read_before_modify.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.rules.minimize_file_creation
+    type: prompt
+    path: prompt_lab/chat/rules/minimize_file_creation.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.rules.no_unnecessary_additions
+    type: prompt
+    path: prompt_lab/chat/rules/no_unnecessary_additions.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.rules.no_premature_abstractions
+    type: prompt
+    path: prompt_lab/chat/rules/no_premature_abstractions.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.rules.execute_with_care
+    type: prompt
+    path: prompt_lab/chat/rules/execute_with_care.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.reminder.external_file_changes
+    type: prompt
+    path: prompt_lab/chat/reminders/external_file_changes.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.reminder.no_write_mode
+    type: prompt
+    path: prompt_lab/chat/reminders/no_write_mode.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.reminder.task_tracking
+    type: prompt
+    path: prompt_lab/chat/reminders/task_tracking.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.reminder.team_coordination
+    type: prompt
+    path: prompt_lab/chat/reminders/team_coordination.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: chat.reminder.memory_maintenance
+    type: prompt
+    path: prompt_lab/chat/reminders/memory_maintenance.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: subagent.base
+    type: prompt
+    path: prompt_lab/core/subagent_system_prompt.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: subagent.base.general
+    type: prompt
+    path: prompt_lab/core/subagent_general_system_prompt.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: subagent.domain.code_reviewer
+    type: prompt
+    path: prompt_lab/domains/code_reviewer.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: subagent.domain.security_auditor
+    type: prompt
+    path: prompt_lab/domains/security_auditor.md
+    status: active
+    default_enabled: false
+    requires_authorization: operator.security_auditor
+
+  - id: subagent.domain.api_architect
+    type: prompt
+    path: prompt_lab/domains/api_architect.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: subagent.domain.general_assistant
+    type: prompt
+    path: prompt_lab/domains/general_assistant.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: orchestrator.subagent
+    type: prompt
+    path: prompt_lab/core/orchestrator_system_prompt.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: debate.base
+    type: prompt
+    path: prompt_lab/debate_base.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: debate.role.security_reviewer
+    type: prompt
+    path: prompt_lab/roles/security_reviewer.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: debate.role.architecture_reviewer
+    type: prompt
+    path: prompt_lab/roles/architecture_reviewer.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: debate.role.performance_reviewer
+    type: prompt
+    path: prompt_lab/roles/performance_reviewer.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: debate.role.style_reviewer
+    type: prompt
+    path: prompt_lab/roles/style_reviewer.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: debate.role.test_reviewer
+    type: prompt
+    path: prompt_lab/roles/test_reviewer.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: debate.role.general_reviewer
+    type: prompt
+    path: prompt_lab/roles/general_reviewer.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: orchestrator.debate
+    type: prompt
+    path: prompt_lab/orchestrator_system_prompt.md
+    status: active
+    default_enabled: true
+    requires_authorization: null
+
+  - id: profile.subagent_code_review
+    type: profile
+    members:
+      - constitution.guard_l1
+      - subagent.base
+      - subagent.domain.code_reviewer
+      - orchestrator.subagent
+    status: active
+    binding_reason_template: code_review_subagent_flow
+
+  - id: profile.debate_code_review
+    type: profile
+    members:
+      - constitution.guard_l1
+      - debate.base
+      - debate.role.security_reviewer
+      - debate.role.architecture_reviewer
+      - debate.role.performance_reviewer
+      - debate.role.style_reviewer
+      - debate.role.test_reviewer
+      - debate.role.general_reviewer
+      - orchestrator.debate
+    status: active
+    binding_reason_template: code_review_debate_flow
+
+  - id: profile.subagent_general
+    type: profile
+    members:
+      - constitution.guard_l1
+      - subagent.base.general
+      - subagent.domain.general_assistant
+      - orchestrator.subagent
+    status: active
+    binding_reason_template: general_subagent_flow
+
+  - id: profile.chat_direct
+    type: profile
+    members:
+      - chat.identity
+      - chat.constitution
+      - chat.soul
+      - chat.rules.read_before_modify
+      - chat.rules.minimize_file_creation
+      - chat.rules.no_unnecessary_additions
+      - chat.rules.no_premature_abstractions
+      - chat.rules.execute_with_care
+      - chat.reminder.external_file_changes
+      - chat.reminder.no_write_mode
+      - chat.reminder.task_tracking
+      - chat.reminder.team_coordination
+      - chat.reminder.memory_maintenance
+    status: active
+    binding_reason_template: direct_chat_flow
+
+  - id: profile.unknown_safe
+    type: profile
+    members:
+      - constitution.guard_l1
+      - subagent.base
+      - subagent.domain.code_reviewer
+      - orchestrator.subagent
+    status: active
+    binding_reason_template: unknown_safe_profile
+
+  # Intentionally aligned with profile.unknown_safe for now.
+  # Governance distinction is at routing intent/reason level; members may diverge in later specialization.
+  - id: profile.intent_safe_fallback
+    type: profile
+    members:
+      - constitution.guard_l1
+      - subagent.base
+      - subagent.domain.code_reviewer
+      - orchestrator.subagent
+    status: active
+    binding_reason_template: intent_not_yet_specialized
