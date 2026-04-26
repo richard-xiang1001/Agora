@@ -147,6 +147,7 @@ class RuntimeStatusResponse(BaseModel):
     queue_depth: int
     active_task_id: str | None = None
     processed_count: int = 0
+    runtime_invariants: dict[str, Any] | None = None
 
 
 class RuntimeTaskRequest(BaseModel):

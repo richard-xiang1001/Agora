@@ -14,6 +14,7 @@ from agora.controllers.schemas import (
     RuntimeTaskStatusResponse,
 )
 from agora.runtime.loop_runner import RuntimeLoopRunner
+from agora.runtime_invariants import check_runtime_invariants
 
 
 def runtime_start(*, app: Any, root: Path) -> RuntimeStartResponse:
@@ -32,12 +33,21 @@ def runtime_stop(*, app: Any) -> RuntimeStopResponse:
 
 def runtime_status(*, app: Any, root: Path) -> RuntimeStatusResponse:
     runner = RuntimeLoopRunner(app)
+    invariant_report = check_runtime_invariants(app=app, root=root, mode="check", write_report=False)
     return RuntimeStatusResponse(
         running=bool(getattr(app.state, "runtime_running", False)),
         queue_depth=runner.queue.depth(),
         active_task_id=getattr(app.state, "runtime_active_task_id", None),
         processed_count=int(getattr(app.state, "runtime_processed_count", 0)),
+        runtime_invariants={
+            "blocked": bool(invariant_report.get("blocked")),
+            "summary": dict(invariant_report.get("summary") or {}),
+        },
     )
+
+
+def runtime_invariants(*, app: Any, root: Path, mode: str = "check") -> dict[str, Any]:
+    return check_runtime_invariants(app=app, root=root, mode=mode, write_report=True)
 
 
 def enqueue_task(*, app: Any, root: Path, session_id: str, req: RuntimeTaskRequest) -> RuntimeTaskEnqueueResponse:

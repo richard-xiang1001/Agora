@@ -34,4 +34,4 @@ jobs:
         run: npm run release:reliability:ci
 
       - name: Run reliability Python tests
-        run: PYTHONPATH=. uv run pytest tests/test_release_hygiene.py tests/test_runtime_invariants.py tests/test_reliability_release_gate.py tests/test_reliability_api.py -q
+        run: PYTHONPATH=. uv run --with-requirements requirements.txt pytest tests/test_release_hygiene.py tests/test_runtime_invariants.py tests/test_reliability_release_gate.py tests/test_reliability_api.py -q

@@ -1,0 +1,12 @@
+thresholds:
+  desktop_repeat: 3
+  desktop_required_pass_rate: 1.0
+  desktop_cleanup_required: true
+  invariant_max_critical: 0
+  redteam_max_hard_deny_bypass: 0
+  require_product_path_release_gate_pass: true
+  require_migration_dry_run_pass: true
+desktop:
+  default_mode: electron
+  live_provider_required: false
+  native_pane_required: false

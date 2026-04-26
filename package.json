@@ -8,7 +8,7 @@
     "desktop:dev": "electron .",
     "desktop:pack": "PYTHONPATH=. ./.venv/bin/python scripts/desktop_pack_preflight.py",
     "desktop:pack:raw": "electron-builder --mac zip dmg",
-    "release:reliability:ci": "PYTHONPATH=. uv run python scripts/run_reliability_release_gate.py --desktop-mode skip",
+    "release:reliability:ci": "PYTHONPATH=. uv run --with-requirements requirements.txt python scripts/run_reliability_release_gate.py --desktop-mode skip",
     "desktop:validate:live": "node scripts/desktop_electron_live_regression.js --provider live",
     "desktop:validate:runtime-governor": "PYTHONPATH=. uv run python scripts/smoke_agent_team_desktop_validation.py --runtime-governor-smoke",
     "desktop:validate:team-workspace": "node scripts/desktop_electron_live_regression.js --provider mock --agent-mode team --team-id research-implement-verify --validate-team-workspace --prompt \"Open the team runtime and start coordination.\"",

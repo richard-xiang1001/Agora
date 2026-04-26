@@ -1,0 +1,12 @@
+thresholds:
+  recent_window: 5
+  min_history_samples: 3
+  min_current_pass_rate: 1.0
+  min_recent_average_pass_rate: 0.95
+  required_passed_paths:
+    - team_launch_member_approval_resume_synthesis
+    - mcp_project_approval_path
+    - memory_sync_conflict_path
+    - reactive_compact_path
+    - safe_point_preemption_path
+    - desktop_live_validation_path

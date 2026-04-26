@@ -174,7 +174,8 @@ class ReleaseHygieneTests(unittest.TestCase):
         package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
         scripts = package.get("scripts") or {}
         self.assertIn("--desktop-mode skip", scripts.get("release:reliability:ci", ""))
-        self.assertIn("uv run python", scripts.get("release:reliability:ci", ""))
+        self.assertIn("uv run", scripts.get("release:reliability:ci", ""))
+        self.assertIn("--with-requirements requirements.txt", scripts.get("release:reliability:ci", ""))
 
     def test_pr_template_covers_release_review_boundary(self) -> None:
         template = (ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8")

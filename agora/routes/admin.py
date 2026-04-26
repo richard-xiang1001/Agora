@@ -68,3 +68,13 @@ def runtime_stop(request: Request) -> RuntimeStopResponse:
 @router.get("/v1/runtime/status", response_model=RuntimeStatusResponse)
 def runtime_status(request: Request) -> RuntimeStatusResponse:
     return runtime_controller.runtime_status(app=request.app, root=request.app.state.base_dir)
+
+
+@router.get("/v1/runtime/invariants")
+def runtime_invariants(request: Request) -> dict:
+    return runtime_controller.runtime_invariants(app=request.app, root=request.app.state.base_dir, mode="check")
+
+
+@router.post("/v1/runtime/invariants/repair")
+def runtime_invariants_repair(request: Request) -> dict:
+    return runtime_controller.runtime_invariants(app=request.app, root=request.app.state.base_dir, mode="repair-safe")
